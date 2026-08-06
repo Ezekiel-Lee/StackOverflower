@@ -2,6 +2,8 @@
 
 FastAPI + SQLAlchemy + PostgreSQL skeleton matching the team's data model doc
 (`users`, `devices`, `sensor_readings`, `alert_rules`, `notifications`, `device_sessions`).
+Authentication is Firebase Auth — the mobile app signs in directly with the
+Firebase SDK, and this API only verifies the resulting ID token.
 
 ## Structure
 
@@ -10,21 +12,66 @@ app/
   main.py              # FastAPI app, router wiring, CORS
   database.py          # SQLAlchemy engine/session
   models.py            # ORM models (the 6 tables)
-  schemas.py            # Pydantic request/response models — the API contract
-  auth.py              # JWT auth (swap for Firebase/Supabase Auth later)
+  schemas.py           # Pydantic request/response models — the API contract
+  auth.py              # Firebase ID token verification
   routers/
-    auth_router.py     # /auth/register, /auth/login, /auth/me
+    auth_router.py     # /auth/sync, /auth/me
     devices_router.py  # /devices — register, list, rename, remove
     sensor_data_router.py  # /devices/{id}/data — ingest + historical query
     alerts_router.py   # /alert-rules, /notifications
 requirements.txt
 ```
 
+## Auth flow (Firebase)
+
+```
+Mobile app                    This API                Firebase
+-----------                   --------                --------
+Sign up / sign in  ---------------------------------->  Firebase Auth SDK
+                    <-----------------------------------  ID token
+POST /auth/sync
+  Authorization: Bearer <id token>  ---->  verify_id_token()  ---->  Firebase Admin SDK
+                                     <----  claims (uid, email, name)
+                    <----  local user row created/updated
+
+All other endpoints:
+  Authorization: Bearer <id token>  ---->  verify + look up local user
+```
+
+- **Sign-up/sign-in/password reset** all happen client-side via the Firebase
+  SDK — this backend never sees or stores a password.
+- **`POST /auth/sync`** must be called once right after sign-in (or any time)
+  to create/update the matching row in our own `users` table. Every other
+  endpoint's `Depends(auth.get_current_user)` looks the user up — it does
+  **not** create them, so calling a protected endpoint before syncing
+  returns 401 with a clear message telling you to sync first.
+- `users.id` is the **Firebase UID** directly (not a separately generated
+  UUID), so device/alert/notification ownership just references that.
+
+## Firebase setup (one-time, per environment)
+
+1. Go to the [Firebase console](https://console.firebase.google.com) → create
+   a project (or use the one the team agrees on).
+2. **Authentication → Sign-in method** → enable at least Email/Password (add
+   others like Google if the mobile team wants them).
+3. **Project Settings → Service Accounts → Generate new private key** →
+   downloads a JSON file.
+4. Save it as `firebase-service-account.json` in the project root.
+   **Never commit this file** — it's already in `.gitignore`.
+5. (Optional) If you keep it somewhere else, set:
+   ```bash
+   export FIREBASE_CREDENTIALS_PATH="/path/to/your-key.json"
+   ```
+
+Each teammate running the backend locally needs their own copy of this file
+(shared privately, e.g. via the team's password manager or a private
+channel — not Slack/git).
+
 ## Endpoints implemented (must-have coverage)
 
 | Endpoint | Covers |
 |---|---|
-| `POST /auth/register`, `POST /auth/login`, `GET /auth/me` | Authentication (must-have) |
+| `POST /auth/sync`, `GET /auth/me` | Authentication (must-have) |
 | `POST /devices`, `GET /devices`, `PATCH /devices/{id}`, `DELETE /devices/{id}` | Device management (must-have) |
 | `POST /devices/{id}/data` | Sensor data ingestion — also runs threshold checks |
 | `GET /devices/{id}/data?sensor_type=&from=&to=` | Historical charts + filtering (must-have) |
@@ -36,6 +83,19 @@ Not yet implemented (stretch / later): NFC pairing, multi-device concurrent
 streaming, AI insights, device_sessions endpoints (connection history is
 modeled but not yet exposed via API).
 
+## Running the tests
+
+```bash
+pip install -r requirements.txt
+pytest -v
+```
+
+Tests run against an in-memory SQLite database and a **mocked** Firebase
+token verifier (see `tests/conftest.py`) — no real Postgres and no real
+Firebase project needed to run the suite. 21 tests cover auth (sync/me),
+device ownership isolation, sensor data ingestion + historical filtering,
+and threshold-breach → notification logic.
+
 ## Running locally
 
 ```bash
@@ -43,20 +103,28 @@ python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 
 # Point at a local Postgres, or run one via Docker:
-# docker run --name dss-pg -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=dss_wearable -p 5432:5432 -d postgres
-export DATABASE_URL="postgresql://postgres:postgres@localhost:5432/dss_wearable"
-export JWT_SECRET="dev-secret-change-me"
+# docker run --name dss-pg -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=dss_wearable -p 5432:5432 -d postgres:16
+export DATABASE_URL="postgresql+psycopg://postgres:postgres@localhost:5432/dss_wearable"
+
+# Make sure firebase-service-account.json is in place (see Firebase setup above)
 
 uvicorn app.main:app --reload
 ```
 
 Interactive API docs (Swagger, auto-generated by FastAPI): `http://localhost:8000/docs`
 
+To call protected endpoints from Swagger: get a real Firebase ID token (e.g.
+from the mobile app after signing in, or Firebase's REST API for testing),
+call `POST /auth/sync` with it once, then click **Authorize** and paste the
+token in (no `Bearer` prefix needed — Swagger adds it).
+
 ## Notes for the rest of the team
 
 - **Mobile team**: the shapes in `schemas.py` are the contract — build against
-  these field names. If a wireframe needs a field that isn't here yet, flag it
-  before building the screen, not after.
+  these field names. Sign-in is entirely client-side via the Firebase SDK;
+  call `POST /auth/sync` right after to register the user with our backend.
+  If a wireframe needs a field that isn't here yet, flag it before building
+  the screen, not after.
 - **Firmware/BLE team**: `POST /devices/{device_id}/data` is what the app calls
   after parsing a BLE packet. Don't call this per raw sample — aggregate
   client-side first (10-30s interval, or on meaningful change), per the team
@@ -65,10 +133,6 @@ Interactive API docs (Swagger, auto-generated by FastAPI): `http://localhost:800
   dev convenience. Once the schema stabilizes, switch to Alembic
   (`alembic init`, then `alembic revision --autogenerate`) so schema changes
   are version-controlled.
-- **Auth**: currently a self-rolled JWT (email/password) so the skeleton runs
-  standalone this week. If the team confirms Firebase/Supabase Auth, swap
-  `auth.py`'s `get_current_user` for their token verification — router code
-  using `Depends(auth.get_current_user)` won't need to change.
 - **Simulated data**: no seed script yet — happy to add a `/dev/seed` endpoint
   or script that inserts fake readings if useful for frontend/UI testing before
   firmware is ready.
