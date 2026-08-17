@@ -1,4 +1,4 @@
-import { View, Text, TextInput, Pressable, Image } from "react-native";
+import { View, Text, TextInput, Pressable, Image, Alert } from "react-native";
 import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -6,6 +6,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import GoogleSignInButton from "@/components/buttons/googleSignInButton";
 import AppleSignInButton from "@/components/buttons/appleSignInButton";
 import { Link } from "expo-router";
+import { signInWithEmail } from "@/lib/firebase/auth";
 
 const signInSchema = z.object({
   email: z.email("Enter a valid email address"),
@@ -30,8 +31,13 @@ export default function Login() {
     },
   });
 
-  const onSubmit = (data: SignInForm) => {
-    console.log(data);
+  const onSubmit = async (data: SignInForm) => {
+    try {
+      await signInWithEmail(data.email, data.password);
+      Alert.alert("Success", "Logged In");
+    } catch (e: any) {
+      Alert.alert("Failed", e.message || "Failed to Login");
+    }
   };
 
   const onGoogleSignIn = () => {
@@ -107,7 +113,14 @@ export default function Login() {
       >
         <Text className="text-center font-semibold text-white">Sign In</Text>
       </Pressable>
-      <Text className="font-bold pt-4 text-center"> Don't have an account? <Link href="/(auth)/signup"> <Text className=" text-[#2563EB]  underline "> Sign up</Text></Link></Text>
+      <Text className="font-bold pt-4 text-center">
+        {" "}
+        Don't have an account?{" "}
+        <Link href="/(auth)/signup">
+          {" "}
+          <Text className=" text-[#2563EB]  underline "> Sign up</Text>
+        </Link>
+      </Text>
       <View className="gap-5 pt-12 flex-row justify-center ">
         <GoogleSignInButton onPress={onGoogleSignIn} />
         <AppleSignInButton onPress={onAppleSignIn} />

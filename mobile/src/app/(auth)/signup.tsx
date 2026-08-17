@@ -1,4 +1,4 @@
-import { View, Text, TextInput, Pressable, Image } from "react-native";
+import { View, Text, TextInput, Pressable, Image, Alert } from "react-native";
 import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -6,6 +6,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import GoogleSignInButton from "@/components/buttons/googleSignInButton";
 import AppleSignInButton from "@/components/buttons/appleSignInButton";
 import { Link } from "expo-router";
+import { signUpWithEmail } from "@/lib/firebase/auth";
 
 const signUpSchema = z
   .object({
@@ -45,8 +46,12 @@ export default function Signup() {
     },
   });
 
-  const onSubmit = (data: SignUpForm) => {
-    console.log(data);
+  const onSubmit = async (data: SignUpForm) => {
+    try {
+      await signUpWithEmail(data.email, data.password, data.displayName);
+    } catch (e: any) {
+      Alert.alert("Failed", e.message || "Failed to Login");
+    }
   };
 
   const onGoogleSignIn = () => {

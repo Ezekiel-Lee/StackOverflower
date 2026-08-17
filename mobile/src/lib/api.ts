@@ -1,17 +1,26 @@
+import { auth } from "./firebase/firebase";
+
 const API_URL = "http://localhost:8000";
 
-export async function syncUser(idToken: string) {
+export async function syncUser() {
+  const user = auth.currentUser;
+
+  if (!user) {
+    throw new Error("No authenticated Firebase user");
+  }
+
+  const token = await user.getIdToken();
+
   const response = await fetch(`${API_URL}/auth/sync`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${idToken}`,
+      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || "Failed to sync user");
+    throw new Error("Failed to sync user");
   }
 
   return response.json();
