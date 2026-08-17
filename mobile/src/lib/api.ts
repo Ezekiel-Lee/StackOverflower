@@ -16,3 +16,13 @@ export async function syncUser(idToken: string) {
 
   return response.json();
 }
+
+export async function getDevices() {
+  const response = await fetch(`${API_URL}/devices`);
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch devices");
+  }
+
+  return response.json();
+}

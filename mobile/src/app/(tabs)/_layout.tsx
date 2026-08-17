@@ -27,28 +27,21 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Home",
+          title: "Summary",
         }}
       />
 
       <Tabs.Screen
-        name="devices"
+        name="connect"
         options={{
-          title: "Devices",
+          title: "Connect",
         }}
       />
 
       <Tabs.Screen
-        name="trends"
+        name="browse"
         options={{
-          title: "Trends",
-        }}
-      />
-
-      <Tabs.Screen
-        name="more"
-        options={{
-          title: "More",
+          title: "Browse",
         }}
       />
     </Tabs>
