@@ -8,8 +8,8 @@ export default function Browse() {
         More
       </Text>
       {/* only for testing */}
-      <Link href="/(auth)/login">
-        <Text> Check Auth page</Text>
+      <Link href="/profile">
+        <Text> Check Profile</Text>
       </Link>
     </View>
   );

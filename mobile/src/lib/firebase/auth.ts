@@ -34,3 +34,7 @@ export const authListener = (callback: NextOrObserver<User>) =>
   onAuthStateChanged(auth, callback);
 
 export const logOut = () => signOut(auth);
+
+export const getCurrentUser = (): User | null => {
+  return auth.currentUser;
+};
