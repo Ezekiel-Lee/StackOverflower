@@ -129,10 +129,23 @@ token in (no `Bearer` prefix needed — Swagger adds it).
   after parsing a BLE packet. Don't call this per raw sample — aggregate
   client-side first (10-30s interval, or on meaningful change), per the team
   doc's guidance on write frequency.
-- **DB migrations**: this skeleton uses `Base.metadata.create_all()` for local
-  dev convenience. Once the schema stabilizes, switch to Alembic
-  (`alembic init`, then `alembic revision --autogenerate`) so schema changes
-  are version-controlled.
+- **DB migrations**: schema is managed by Alembic now (not `create_all()` —
+  that hook was removed). First-time setup or after pulling schema changes:
+  ```
+  alembic upgrade head
+  ```
+  After changing any model in `app/models.py`, generate and review a new
+  migration before committing:
+  ```
+  alembic revision --autogenerate -m "short description"
+  ```
+  Then open the generated file in `alembic/versions/` and check it actually
+  matches what you intended — autogenerate is a good first draft, not
+  guaranteed correct (e.g. it won't detect a plain column rename, and it
+  needs a manual `import app.types` added to the generated file if the diff
+  touches a GUID column, since autogenerate doesn't know to import our
+  custom type on its own). Apply it locally with `alembic upgrade head`
+  before pushing.
 - **Simulated data**: no seed script yet — happy to add a `/dev/seed` endpoint
   or script that inserts fake readings if useful for frontend/UI testing before
   firmware is ready.
