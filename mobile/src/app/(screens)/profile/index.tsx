@@ -5,9 +5,11 @@ import ProfileItem from "@/components/cards/profileItem";
 import { getCurrentUser, logOut } from "@/lib/firebase/auth";
 import { useEffect, useState } from "react";
 import { User } from "firebase/auth";
+import { useRouter } from "expo-router";
 
 export default function Profile() {
   const [user, setUser] = useState<User | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     setUser(getCurrentUser());
@@ -81,6 +83,7 @@ export default function Profile() {
             icon="notifications-outline"
             title="Notifications"
             subtitle="Manage notification preferences"
+            
           />
         </View>
       </View>
@@ -96,6 +99,7 @@ export default function Profile() {
             icon="help-circle-outline"
             title="Help & Support"
             subtitle="Get help with the app"
+            onPress={() => router.push("/support")}
           />
         </View>
       </View>

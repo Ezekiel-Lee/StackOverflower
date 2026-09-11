@@ -5,17 +5,20 @@ type ProfileItemProps = {
   icon: keyof typeof Ionicons.glyphMap;
   title: string;
   subtitle: string;
+  onPress?: () => void;
 };
 
 export default function ProfileItem({
   icon,
   title,
   subtitle,
+  onPress,
 }: ProfileItemProps) {
   return (
     <TouchableOpacity
       className="flex-row items-center px-4 py-4"
       activeOpacity={0.7}
+      onPress={onPress}
     >
       {/* Icon */}
       <View className="h-10 w-10 items-center justify-center rounded-xl bg-white">
