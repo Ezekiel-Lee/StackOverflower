@@ -17,7 +17,7 @@ Setup required (see README):
 import os
 
 import firebase_admin
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from firebase_admin import auth as firebase_auth, credentials
 from sqlalchemy.orm import Session
@@ -25,7 +25,27 @@ from sqlalchemy.orm import Session
 from app import models
 from app.database import get_db
 
-http_bearer = HTTPBearer()
+
+class Bearer401(HTTPBearer):
+    """
+    Same as HTTPBearer, but returns 401 instead of FastAPI's default 403
+    when the Authorization header is missing entirely. Keeps "no token"
+    and "bad token" both mapping to 401, which is what our tests (and most
+    API clients) expect.
+    """
+
+    async def __call__(self, request: Request):
+        try:
+            return await super().__call__(request)
+        except HTTPException:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Not authenticated",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+
+http_bearer = Bearer401()
 
 _CRED_PATH = os.getenv("FIREBASE_CREDENTIALS_PATH", "firebase-service-account.json")
 

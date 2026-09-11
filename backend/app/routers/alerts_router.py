@@ -1,6 +1,8 @@
 from typing import List
 
-from fastapi import APIRouter, Depends
+from datetime import datetime
+
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app import models, schemas, auth
@@ -41,3 +43,32 @@ def list_notifications(
         .order_by(models.Notification.created_at.desc())
         .all()
     )
+
+
+@router.patch("/notifications/{notification_id}/read", response_model=schemas.NotificationOut)
+def mark_notification_read(
+    notification_id: str,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Marks a notification as read (sets read_at to now). Idempotent -- calling
+    this on an already-read notification just refreshes read_at rather than
+    erroring, since the mobile app doesn't need to track whether this is the
+    first read.
+    """
+    notification = (
+        db.query(models.Notification)
+        .filter(
+            models.Notification.id == notification_id,
+            models.Notification.user_id == current_user.id,
+        )
+        .first()
+    )
+    if notification is None:
+        raise HTTPException(status_code=404, detail="Notification not found")
+
+    notification.read_at = datetime.utcnow()
+    db.commit()
+    db.refresh(notification)
+    return notification

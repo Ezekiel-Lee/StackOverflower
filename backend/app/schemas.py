@@ -106,6 +106,19 @@ class NotificationOut(BaseModel):
 
 # ---------- Device sessions (connection history) ----------
 
+class DeviceSessionCreate(BaseModel):
+    # connected_at defaults to server time if omitted -- mirrors
+    # SensorReadingCreate.recorded_at so both endpoints behave the same way
+    # when the caller doesn't have a precise client-side timestamp.
+    connected_at: Optional[datetime] = None
+
+
+class DeviceSessionUpdate(BaseModel):
+    # Called to close out a session once the device disconnects.
+    disconnected_at: Optional[datetime] = None
+    disconnect_reason: Optional[str] = None
+
+
 class DeviceSessionOut(BaseModel):
     id: str
     device_id: str
