@@ -27,6 +27,12 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
+          title: "Home",
+        }}
+      />
+      <Tabs.Screen
+        name="summary"
+        options={{
           title: "Summary",
         }}
       />
@@ -39,9 +45,9 @@ export default function TabsLayout() {
       />
 
       <Tabs.Screen
-        name="browse"
+        name="settings"
         options={{
-          title: "Browse",
+          title: "Settings",
         }}
       />
     </Tabs>
