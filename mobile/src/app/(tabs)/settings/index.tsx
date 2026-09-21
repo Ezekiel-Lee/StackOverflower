@@ -73,6 +73,7 @@ export default function Settings() {
             icon="settings-outline"
             title="Account Settings"
             subtitle="Update your account details"
+             onPress={() => router.push("/(screens)/settings/accountSettings")}
           />
 
           <ProfileItem

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { User } from "firebase/auth";
-import { authListener, logOut } from "@/lib/firebase/auth";
+import { authListener, logOut, getCurrentUser } from "@/lib/firebase/auth";
 import { syncUser } from "@/lib/api";
 
 type AuthState = {
@@ -10,6 +10,7 @@ type AuthState = {
 
   initializeAuth: () => () => void;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 };
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -39,5 +40,21 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: async () => {
     await logOut();
+  },
+
+  refreshUser: async () => {
+    const user = getCurrentUser();
+
+    if (!user) {
+      return;
+    }
+
+    await user.reload();
+
+    const refreshedUser = getCurrentUser();
+
+    set({
+      user: refreshedUser,
+    });
   },
 }));
