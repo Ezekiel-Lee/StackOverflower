@@ -233,9 +233,21 @@ Auth/ownership errors (`401`, `404`) return:
 These exist in the data model but have no endpoint yet — flag if your screen needs them so we can prioritize:
 - **NFC pairing** (stretch goal per team doc)
 - **Multiple simultaneous device connections** (stretch goal)
-- **`device_sessions`** (connection history) — modeled in the DB, no API yet
 - **AI-based insights** (stretch goal)
+- **`vendor_credentials`** (OAuth tokens for the normalizer's vendor-API integration) — still being designed
 
 ---
 
-*Last updated against `schemas.py` as of the Firebase Auth migration. If this doc and `/docs` (Swagger) ever disagree, trust Swagger and flag the mismatch.*
+## 9. Patients (Doctor role only — DWSO-94)
+
+All three endpoints require the caller's role to be `"doctor"` (returns `403` otherwise). A `"patient"`-role user calling these gets `403`, not `404` — the endpoints exist, the caller just isn't allowed to use them.
+
+- `GET /patients/search?query=...` — matches name or `patient_code`. Returns `PatientSummary[]` (id, name, patient_code only — no medical details in a list).
+- `GET /patients/{patient_id}` — full `PatientOut` (adds age, address, dob, emergency_contact, medical_details).
+- `PATCH /patients/{patient_id}` — partial update, same fields as `PatientOut` minus id/email/role. Matches the wireframe's Edit Details -> confirm -> "Saved successfully" flow; the confirm dialog and success toast are frontend-only, this endpoint just does the save.
+
+`UserOut` (returned by `/auth/sync` and `/auth/me`) now also includes `role` (`"patient"` by default). There is currently no endpoint to grant the doctor role to an account — it's set directly in the database. Flag it if the app needs a self-serve way to do this.
+
+---
+
+*Last updated against `schemas.py` as of the RBAC (patients) redesign, DWSO-94. If this doc and `/docs` (Swagger) ever disagree, trust Swagger and flag the mismatch.*

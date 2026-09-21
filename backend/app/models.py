@@ -21,6 +21,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Index,
+    Integer,
     String,
     Text,
 )
@@ -36,6 +37,11 @@ class User(Base):
     local mirror of Firebase-authenticated users, created/updated on first
     sign-in via POST /auth/sync. Firebase owns credentials entirely; we never
     store a password here.
+
+    role/patient-profile fields (DWSO-94, RBAC redesign): every user defaults
+    to "patient". A "doctor" user gets access to the /patients/* endpoints,
+    which are the one deliberate exception to the "you can only see your own
+    data" rule enforced everywhere else in this API.
     """
     __tablename__ = "users"
 
@@ -43,6 +49,14 @@ class User(Base):
     email = Column(String, unique=True, nullable=False, index=True)
     name = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+    role = Column(String, nullable=False, default="patient")  # "patient" | "doctor"
+    patient_code = Column(String, unique=True, nullable=True, index=True)  # human-readable ID, e.g. "P_ID 111"
+    age = Column(Integer, nullable=True)
+    address = Column(String, nullable=True)
+    dob = Column(DateTime, nullable=True)
+    emergency_contact = Column(String, nullable=True)
+    medical_details = Column(Text, nullable=True)
 
     devices = relationship("Device", back_populates="owner", cascade="all, delete-orphan")
     alert_rules = relationship("AlertRule", back_populates="user", cascade="all, delete-orphan")
