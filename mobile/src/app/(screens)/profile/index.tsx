@@ -2,22 +2,18 @@ import { Alert, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import ProfileItem from "@/components/cards/profileItem";
-import { getCurrentUser, logOut } from "@/lib/firebase/auth";
-import { useEffect, useState } from "react";
-import { User } from "firebase/auth";
+import { useAuthStore } from "@/store/authStore";
 import { useRouter } from "expo-router";
 
 export default function Profile() {
-  const [user, setUser] = useState<User | null>(null);
   const router = useRouter();
 
-  useEffect(() => {
-    setUser(getCurrentUser());
-  }, []);
+  const user = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
 
   const onLogout = async () => {
     try {
-      await logOut();
+      await logout();
     } catch (e: any) {
       Alert.alert("Failed", e.message || "Failed to Logout");
     }
@@ -83,7 +79,6 @@ export default function Profile() {
             icon="notifications-outline"
             title="Notifications"
             subtitle="Manage notification preferences"
-            
           />
         </View>
       </View>
