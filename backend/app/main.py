@@ -7,6 +7,7 @@ from app.routers import (
     sensor_data_router,
     alerts_router,
     device_sessions_router,
+    patients_router,
 )
 
 # Schema is now owned by Alembic (see alembic/ and README) -- run
@@ -27,6 +28,7 @@ app.include_router(devices_router.router)
 app.include_router(sensor_data_router.router)
 app.include_router(alerts_router.router)
 app.include_router(device_sessions_router.router)
+app.include_router(patients_router.router)
 
 
 @app.get("/health")

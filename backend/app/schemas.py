@@ -20,6 +20,7 @@ class UserOut(BaseModel):
     email: EmailStr
     name: str
     created_at: datetime
+    role: str
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -127,3 +128,43 @@ class DeviceSessionOut(BaseModel):
     disconnect_reason: Optional[str]
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# ---------- Patients (Doctor-role RBAC — DWSO-94) ----------
+# These endpoints are the one deliberate exception to "you can only see your
+# own data": a doctor-role user can read/update another user's profile. See
+# app/routers/patients_router.py for the role check that guards this.
+
+class PatientOut(BaseModel):
+    id: str
+    email: EmailStr
+    name: str
+    role: str
+    patient_code: Optional[str]
+    age: Optional[int]
+    address: Optional[str]
+    dob: Optional[datetime]
+    emergency_contact: Optional[str]
+    medical_details: Optional[str]
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PatientSummary(BaseModel):
+    # Lighter-weight shape for search results (matches the wireframe's
+    # "P_ID 111 : Name 1" list) -- avoids sending medical_details for a
+    # whole result list.
+    id: str
+    name: str
+    patient_code: Optional[str]
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PatientUpdate(BaseModel):
+    name: Optional[str] = None
+    age: Optional[int] = None
+    address: Optional[str] = None
+    dob: Optional[datetime] = None
+    emergency_contact: Optional[str] = None
+    medical_details: Optional[str] = None
