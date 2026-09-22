@@ -20,7 +20,10 @@ config = context.config
 # Always use the same URL the app itself uses (DATABASE_URL env var, same
 # default as app/database.py) so `alembic upgrade head` and the running app
 # never point at different databases.
-config.set_main_option("sqlalchemy.url", SQLALCHEMY_DATABASE_URL)
+config.set_main_option(
+    "sqlalchemy.url",
+    SQLALCHEMY_DATABASE_URL.replace("%", "%%")
+)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
