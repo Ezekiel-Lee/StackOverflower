@@ -35,3 +35,13 @@ export async function getDevices() {
 
   return response.json();
 }
+
+export async function getData(id: string) {
+  const response = await fetch(`${API_URL}/devices/{id}/data`);
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch data");
+  }
+
+  return response.json();
+}
