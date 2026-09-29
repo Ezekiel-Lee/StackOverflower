@@ -24,7 +24,14 @@ FAKE_CLAIMS = {"uid": "test-uid-123", "email": "test@example.com", "name": "Test
 FAKE_TOKEN_2 = "test-firebase-id-token-2"
 FAKE_CLAIMS_2 = {"uid": "test-uid-456", "email": "other@example.com", "name": "Other User"}
 
-_FAKE_TOKENS = {FAKE_TOKEN: FAKE_CLAIMS, FAKE_TOKEN_2: FAKE_CLAIMS_2}
+FAKE_TOKEN_DOCTOR = "test-firebase-id-token-doctor"
+FAKE_CLAIMS_DOCTOR = {"uid": "test-uid-doctor", "email": "doctor@example.com", "name": "Dr. Test"}
+
+_FAKE_TOKENS = {
+    FAKE_TOKEN: FAKE_CLAIMS,
+    FAKE_TOKEN_2: FAKE_CLAIMS_2,
+    FAKE_TOKEN_DOCTOR: FAKE_CLAIMS_DOCTOR,
+}
 
 
 @pytest.fixture(autouse=True)
@@ -79,4 +86,23 @@ def auth_headers(client):
     """Simulates a Firebase-signed-in user: syncs the local user row, returns ready-to-use headers."""
     headers = {"Authorization": f"Bearer {FAKE_TOKEN}"}
     client.post("/auth/sync", headers=headers)
+    return headers
+
+
+@pytest.fixture()
+def doctor_headers(client, db_session):
+    """
+    Syncs in a second user, then promotes them to role="doctor" directly via
+    the DB session -- there's no API endpoint for granting the doctor role
+    (that's an intentional admin-only gap, not something any signed-in user
+    can grant themselves through the API).
+    """
+    from app import models
+
+    headers = {"Authorization": f"Bearer {FAKE_TOKEN_DOCTOR}"}
+    client.post("/auth/sync", headers=headers)
+
+    user = db_session.query(models.User).filter(models.User.id == FAKE_CLAIMS_DOCTOR["uid"]).first()
+    user.role = "doctor"
+    db_session.commit()
     return headers

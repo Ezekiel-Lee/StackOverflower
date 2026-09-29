@@ -20,6 +20,7 @@ class UserOut(BaseModel):
     email: EmailStr
     name: str
     created_at: datetime
+    role: str
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -46,8 +47,29 @@ class DeviceOut(BaseModel):
     ble_identifier: Optional[str]
     firmware_version: Optional[str]
     created_at: datetime
+    vendor: Optional[str]
+    vendor_device_id: Optional[str]
+    battery_level: Optional[int]
+    last_synced_at: Optional[datetime]
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class VendorLinkRequest(BaseModel):
+    """Body for POST /devices/{id}/link-vendor -- stores the OAuth credential
+    obtained by the mobile app's vendor sign-in flow (see the wireframe's
+    Connect -> vendor account flow)."""
+    vendor: str  # must match a key in app.normalizer.registry.ADAPTER_REGISTRY
+    vendor_device_id: Optional[str] = None
+    access_token: str
+    refresh_token: Optional[str] = None
+    expires_at: Optional[datetime] = None
+
+
+class SyncResult(BaseModel):
+    readings_synced: int
+    battery_level: Optional[int]
+    last_synced_at: datetime
 
 
 # ---------- Sensor readings ----------
@@ -127,3 +149,43 @@ class DeviceSessionOut(BaseModel):
     disconnect_reason: Optional[str]
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# ---------- Patients (Doctor-role RBAC — DWSO-94) ----------
+# These endpoints are the one deliberate exception to "you can only see your
+# own data": a doctor-role user can read/update another user's profile. See
+# app/routers/patients_router.py for the role check that guards this.
+
+class PatientOut(BaseModel):
+    id: str
+    email: EmailStr
+    name: str
+    role: str
+    patient_code: Optional[str]
+    age: Optional[int]
+    address: Optional[str]
+    dob: Optional[datetime]
+    emergency_contact: Optional[str]
+    medical_details: Optional[str]
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PatientSummary(BaseModel):
+    # Lighter-weight shape for search results (matches the wireframe's
+    # "P_ID 111 : Name 1" list) -- avoids sending medical_details for a
+    # whole result list.
+    id: str
+    name: str
+    patient_code: Optional[str]
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PatientUpdate(BaseModel):
+    name: Optional[str] = None
+    age: Optional[int] = None
+    address: Optional[str] = None
+    dob: Optional[datetime] = None
+    emergency_contact: Optional[str] = None
+    medical_details: Optional[str] = None

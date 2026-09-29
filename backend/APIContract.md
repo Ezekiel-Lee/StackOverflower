@@ -233,9 +233,31 @@ Auth/ownership errors (`401`, `404`) return:
 These exist in the data model but have no endpoint yet — flag if your screen needs them so we can prioritize:
 - **NFC pairing** (stretch goal per team doc)
 - **Multiple simultaneous device connections** (stretch goal)
-- **`device_sessions`** (connection history) — modeled in the DB, no API yet
 - **AI-based insights** (stretch goal)
+- **`vendor_credentials`** (OAuth tokens for the normalizer's vendor-API integration) — still being designed
 
 ---
 
-*Last updated against `schemas.py` as of the Firebase Auth migration. If this doc and `/docs` (Swagger) ever disagree, trust Swagger and flag the mismatch.*
+## 9. Patients (Doctor role only — DWSO-94)
+
+All three endpoints require the caller's role to be `"doctor"` (returns `403` otherwise). A `"patient"`-role user calling these gets `403`, not `404` — the endpoints exist, the caller just isn't allowed to use them.
+
+- `GET /patients/search?query=...` — matches name or `patient_code`. Returns `PatientSummary[]` (id, name, patient_code only — no medical details in a list).
+- `GET /patients/{patient_id}` — full `PatientOut` (adds age, address, dob, emergency_contact, medical_details).
+- `PATCH /patients/{patient_id}` — partial update, same fields as `PatientOut` minus id/email/role. Matches the wireframe's Edit Details -> confirm -> "Saved successfully" flow; the confirm dialog and success toast are frontend-only, this endpoint just does the save.
+
+`UserOut` (returned by `/auth/sync` and `/auth/me`) now also includes `role` (`"patient"` by default). There is currently no endpoint to grant the doctor role to an account — it's set directly in the database. Flag it if the app needs a self-serve way to do this.
+
+---
+
+## 10. Normalizer / Vendor Sync
+
+Replaces direct BLE parsing — see `Normalizer_Explained.docx` for the full design writeup. `Device` now has `vendor`, `vendor_device_id`, `battery_level`, `last_synced_at`.
+
+- `POST /devices/{device_id}/link-vendor` — body: `{ vendor, vendor_device_id?, access_token, refresh_token?, expires_at? }`. `vendor` must be a key registered in `app/normalizer/registry.py` (currently only `"mock"` — no real wearable vendor is confirmed yet) or this returns `422`. Call this right after the app's "vendor connected successfully" step. Returns the updated `DeviceOut`.
+- `POST /devices/{device_id}/sync` — pulls new readings through the device's vendor adapter and feeds them into the normal ingestion + alert-rule pipeline (same behavior as a manual `POST /devices/{id}/data`, including notifications on a threshold breach). Returns `{ readings_synced, battery_level, last_synced_at }`. Returns `409` if the device has no vendor linked yet, `401` if the stored vendor token is invalid/expired.
+- No scheduler exists yet — sync currently only happens when the app calls this endpoint. Whether this should instead run on a backend schedule is still an open question (see the System Maintenance Document, Section 15).
+
+---
+
+*Last updated against `schemas.py` as of the normalizer implementation. If this doc and `/docs` (Swagger) ever disagree, trust Swagger and flag the mismatch.*

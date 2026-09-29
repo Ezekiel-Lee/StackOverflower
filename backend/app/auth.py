@@ -94,3 +94,20 @@ def get_current_user(
             detail="User not found locally -- call POST /auth/sync after first sign-in",
         )
     return user
+
+
+def require_doctor(current_user: models.User = Depends(get_current_user)) -> models.User:
+    """
+    Gate for the /patients/* endpoints (DWSO-94 RBAC redesign).
+
+    A separate dependency rather than a check inside each route, so every
+    doctor-only endpoint gets the same 403 behaviour and it's obvious at a
+    glance (Depends(require_doctor) in the signature) which routes cross the
+    normal "you can only see your own data" boundary.
+    """
+    if current_user.role != "doctor":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Doctor role required for this endpoint",
+        )
+    return current_user

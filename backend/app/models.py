@@ -21,6 +21,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Index,
+    Integer,
     String,
     Text,
 )
@@ -36,6 +37,11 @@ class User(Base):
     local mirror of Firebase-authenticated users, created/updated on first
     sign-in via POST /auth/sync. Firebase owns credentials entirely; we never
     store a password here.
+
+    role/patient-profile fields (DWSO-94, RBAC redesign): every user defaults
+    to "patient". A "doctor" user gets access to the /patients/* endpoints,
+    which are the one deliberate exception to the "you can only see your own
+    data" rule enforced everywhere else in this API.
     """
     __tablename__ = "users"
 
@@ -43,6 +49,14 @@ class User(Base):
     email = Column(String, unique=True, nullable=False, index=True)
     name = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+    role = Column(String, nullable=False, default="patient")  # "patient" | "doctor"
+    patient_code = Column(String, unique=True, nullable=True, index=True)  # human-readable ID, e.g. "P_ID 111"
+    age = Column(Integer, nullable=True)
+    address = Column(String, nullable=True)
+    dob = Column(DateTime, nullable=True)
+    emergency_contact = Column(String, nullable=True)
+    medical_details = Column(Text, nullable=True)
 
     devices = relationship("Device", back_populates="owner", cascade="all, delete-orphan")
     alert_rules = relationship("AlertRule", back_populates="user", cascade="all, delete-orphan")
@@ -56,13 +70,21 @@ class Device(Base):
     owner_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
     name = Column(String, nullable=False)
     model = Column(String, nullable=True)
-    ble_identifier = Column(String, nullable=True)  # MAC address or BLE device UUID
+    ble_identifier = Column(String, nullable=True)  # legacy MAC/UUID; kept for backward compat
     firmware_version = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Normalizer / vendor-API fields (replaces direct BLE parsing — see the
+    # System Maintenance Document, Section 15).
+    vendor = Column(String, nullable=True)  # registry key, e.g. "mock" — see app/normalizer/registry.py
+    vendor_device_id = Column(String, nullable=True)  # the vendor's own ID for this device, if any
+    battery_level = Column(Integer, nullable=True)  # 0-100, updated on each sync
+    last_synced_at = Column(DateTime, nullable=True)
 
     owner = relationship("User", back_populates="devices")
     readings = relationship("SensorReading", back_populates="device", cascade="all, delete-orphan")
     sessions = relationship("DeviceSession", back_populates="device", cascade="all, delete-orphan")
+    credential = relationship("VendorCredential", back_populates="device", uselist=False, cascade="all, delete-orphan")
 
 
 class SensorReading(Base):
@@ -119,3 +141,25 @@ class DeviceSession(Base):
     disconnect_reason = Column(String, nullable=True)  # e.g. "user", "out_of_range", "battery_dead"
 
     device = relationship("Device", back_populates="sessions")
+
+
+class VendorCredential(Base):
+    """
+    OAuth (or similar) credential for one device's connection to its wearable
+    vendor's API. One-to-one with Device for now — a device is linked to
+    exactly one vendor account.
+
+    access_token/refresh_token are stored as plain strings for this prototype
+    stage; flagged in the System Maintenance Document (Section 12, Security)
+    as needing encryption-at-rest before any real deployment.
+    """
+    __tablename__ = "vendor_credentials"
+
+    id = Column(GUID(), primary_key=True, default=gen_uuid)
+    device_id = Column(GUID(), ForeignKey("devices.id"), nullable=False, unique=True, index=True)
+    access_token = Column(String, nullable=False)
+    refresh_token = Column(String, nullable=True)
+    expires_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    device = relationship("Device", back_populates="credential")
