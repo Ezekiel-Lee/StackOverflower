@@ -47,8 +47,29 @@ class DeviceOut(BaseModel):
     ble_identifier: Optional[str]
     firmware_version: Optional[str]
     created_at: datetime
+    vendor: Optional[str]
+    vendor_device_id: Optional[str]
+    battery_level: Optional[int]
+    last_synced_at: Optional[datetime]
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class VendorLinkRequest(BaseModel):
+    """Body for POST /devices/{id}/link-vendor -- stores the OAuth credential
+    obtained by the mobile app's vendor sign-in flow (see the wireframe's
+    Connect -> vendor account flow)."""
+    vendor: str  # must match a key in app.normalizer.registry.ADAPTER_REGISTRY
+    vendor_device_id: Optional[str] = None
+    access_token: str
+    refresh_token: Optional[str] = None
+    expires_at: Optional[datetime] = None
+
+
+class SyncResult(BaseModel):
+    readings_synced: int
+    battery_level: Optional[int]
+    last_synced_at: datetime
 
 
 # ---------- Sensor readings ----------

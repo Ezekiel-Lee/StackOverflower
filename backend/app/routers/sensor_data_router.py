@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app import models, schemas, auth
 from app.database import get_db
 from app.routers.devices_router import _get_owned_device
+from app.services import check_thresholds as _check_thresholds
 
 router = APIRouter(prefix="/devices/{device_id}/data", tags=["sensor-data"])
 
@@ -65,31 +66,3 @@ def get_history(
         q = q.filter(models.SensorReading.recorded_at <= to)
 
     return q.order_by(models.SensorReading.recorded_at.asc()).all()
-
-
-def _check_thresholds(reading: models.SensorReading, user: models.User, db: Session) -> None:
-    """After each ingested reading, check user-defined alert rules and create a notification if breached."""
-    rules = (
-        db.query(models.AlertRule)
-        .filter(
-            models.AlertRule.user_id == user.id,
-            models.AlertRule.sensor_type == reading.sensor_type,
-            models.AlertRule.enabled.is_(True),
-        )
-        .all()
-    )
-    for rule in rules:
-        breached = (
-            (rule.minimum_value is not None and reading.value < rule.minimum_value)
-            or (rule.maximum_value is not None and reading.value > rule.maximum_value)
-        )
-        if breached:
-            db.add(
-                models.Notification(
-                    user_id=user.id,
-                    severity="warning",
-                    message=f"{reading.sensor_type} reading {reading.value} outside threshold "
-                    f"({rule.minimum_value}-{rule.maximum_value})",
-                )
-            )
-    db.commit()

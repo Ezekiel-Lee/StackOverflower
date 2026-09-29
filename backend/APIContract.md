@@ -250,4 +250,14 @@ All three endpoints require the caller's role to be `"doctor"` (returns `403` ot
 
 ---
 
-*Last updated against `schemas.py` as of the RBAC (patients) redesign, DWSO-94. If this doc and `/docs` (Swagger) ever disagree, trust Swagger and flag the mismatch.*
+## 10. Normalizer / Vendor Sync
+
+Replaces direct BLE parsing — see `Normalizer_Explained.docx` for the full design writeup. `Device` now has `vendor`, `vendor_device_id`, `battery_level`, `last_synced_at`.
+
+- `POST /devices/{device_id}/link-vendor` — body: `{ vendor, vendor_device_id?, access_token, refresh_token?, expires_at? }`. `vendor` must be a key registered in `app/normalizer/registry.py` (currently only `"mock"` — no real wearable vendor is confirmed yet) or this returns `422`. Call this right after the app's "vendor connected successfully" step. Returns the updated `DeviceOut`.
+- `POST /devices/{device_id}/sync` — pulls new readings through the device's vendor adapter and feeds them into the normal ingestion + alert-rule pipeline (same behavior as a manual `POST /devices/{id}/data`, including notifications on a threshold breach). Returns `{ readings_synced, battery_level, last_synced_at }`. Returns `409` if the device has no vendor linked yet, `401` if the stored vendor token is invalid/expired.
+- No scheduler exists yet — sync currently only happens when the app calls this endpoint. Whether this should instead run on a backend schedule is still an open question (see the System Maintenance Document, Section 15).
+
+---
+
+*Last updated against `schemas.py` as of the normalizer implementation. If this doc and `/docs` (Swagger) ever disagree, trust Swagger and flag the mismatch.*
