@@ -6,6 +6,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { useAuthStore } from "@/store/authStore";
 import { useDashboardStore } from "@/store/dashboardStore";
+import { useDeviceStore } from "@/store/deviceStore";
 import { useSensorData } from "@/hooks/useSensorData";
 
 import { getAvailableSensors } from "@/lib/sensorUtils";
@@ -36,13 +37,12 @@ export default function Dashboard() {
     (state) => state.removeSummarySensor,
   );
 
-  /*
-   * Replace this with actual
-   * connected device.
-   */
-  const connectedDevice = "";
+  // Set by the Connect screen (src/app/(tabs)/connect.tsx) once a device is
+  // registered and its first sync completes -- persisted, so it survives
+  // an app restart.
+  const connectedDevice = useDeviceStore((state) => state.connectedDeviceId);
 
-  const { sensorData, loading } = useSensorData(connectedDevice || null);
+  const { sensorData, loading } = useSensorData(connectedDevice);
 
   const [modalType, setModalType] = useState<"graph" | "highlight" | null>(
     null,
