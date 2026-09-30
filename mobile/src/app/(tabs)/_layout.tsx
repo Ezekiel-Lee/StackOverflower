@@ -1,5 +1,6 @@
 import { Tabs } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Ionicons from "@expo/vector-icons/Ionicons";
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
@@ -8,7 +9,6 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarIcon: () => null,
 
         tabBarStyle: {
           height: 60 + insets.bottom,
@@ -27,28 +27,40 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Home",
+          title: "Dashboard",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="grid-outline" size={size} color={color} />
+          ),
         }}
       />
 
       <Tabs.Screen
-        name="devices"
+        name="summary"
         options={{
-          title: "Devices",
+          title: "Summary",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="newspaper-outline" size={size} color={color} />
+          ),
         }}
       />
 
       <Tabs.Screen
-        name="trends"
+        name="connect"
         options={{
-          title: "Trends",
+          title: "Connect",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="radio-outline" size={size} color={color} />
+          ),
         }}
       />
 
       <Tabs.Screen
-        name="more"
+        name="settings"
         options={{
-          title: "More",
+          title: "Settings",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="settings-outline" size={size} color={color} />
+          ),
         }}
       />
     </Tabs>
