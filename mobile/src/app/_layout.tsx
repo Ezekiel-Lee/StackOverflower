@@ -5,10 +5,12 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ActivityIndicator, Platform, View } from "react-native";
 import { useEffect } from "react";
 import { useAuthStore } from "@/store/authStore";
-import { defineHealthSyncTask, registerHealthSync } from "@/lib/health/backgroundSync";
+import {
+  defineHealthSyncTask,
+  registerHealthSync,
+} from "@/lib/health/backgroundSync";
 
-// Must run once at module load (not inside the component) so the task is
-// registered even when this screen isn't currently mounted.
+// Register background task once when the app loads.
 if (Platform.OS === "android") {
   defineHealthSyncTask();
 }
@@ -25,20 +27,23 @@ export default function RootLayout() {
 
   const segments = useSegments();
 
+  // Initialize Firebase authentication listener.
   useEffect(() => {
     const unsubscribe = initializeAuth();
 
     return unsubscribe;
   }, [initializeAuth]);
 
-  // Once a user is signed in, start the periodic background sync.
-  // Safe to call repeatedly -- registerTaskAsync no-ops if already registered.
+  // Register health background sync after authentication.
   useEffect(() => {
     if (user && Platform.OS === "android") {
-      registerHealthSync().catch((e) => console.warn("Failed to register background sync:", e));
+      registerHealthSync().catch((error) => {
+        console.warn("Failed to register background sync:", error);
+      });
     }
   }, [user]);
 
+  // Wait until fonts and authentication state are ready.
   if (!fontsLoaded || loading) {
     return (
       <View className="flex-1 items-center justify-center">
@@ -49,10 +54,14 @@ export default function RootLayout() {
 
   const inAuthGroup = segments[0] === "(auth)";
 
+  // User is NOT authenticated.
+  // They are only allowed to access auth screens.
   if (!user && !inAuthGroup) {
     return <Redirect href="/(auth)/login" />;
   }
 
+  // User IS authenticated.
+  // They are not allowed to access auth screens.
   if (user && inAuthGroup) {
     return <Redirect href="/(tabs)" />;
   }

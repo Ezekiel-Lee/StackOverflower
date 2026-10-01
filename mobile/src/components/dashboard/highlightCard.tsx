@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Text, TouchableOpacity, View } from "react-native";
 
-import { formatSensorName } from "@/lib/sensorUtils";
+import { getSensorStyle } from "@/lib/sensorStyles";
 import type { SensorData } from "@/types/sensor";
 
 type Props = {
@@ -15,11 +15,13 @@ export default function HighlightCard({
   reading,
   onRemove,
 }: Props) {
+  const style = getSensorStyle(sensorType);
+
   return (
-    <View className="w-[48%] rounded-2xl bg-green-50 px-4 py-4">
+    <View className={`w-[48%] rounded-2xl px-4 py-4 ${style.card}`}>
       <View className="flex-row items-start justify-between">
         <View className="h-10 w-10 items-center justify-center rounded-full bg-white">
-          <Ionicons name="analytics-outline" size={25} color="#166534" />
+          <Ionicons name={style.icon} size={25} color={style.iconColor} />
         </View>
 
         <TouchableOpacity onPress={onRemove}>
@@ -28,7 +30,7 @@ export default function HighlightCard({
       </View>
 
       <Text className="mt-4 font-coiny text-sm text-gray-600">
-        {formatSensorName(sensorType)}
+        {style.name}
       </Text>
 
       <View className="mt-1 flex-row items-baseline">

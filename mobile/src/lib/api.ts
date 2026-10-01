@@ -1,6 +1,6 @@
 import { auth } from "./firebase/firebase";
 
-const API_URL = "http://localhost:8000";
+const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
 async function authHeaders() {
   const user = auth.currentUser;
@@ -56,7 +56,12 @@ export async function getData(id: string) {
 
 export async function postSensorData(
   deviceId: string,
-  reading: { sensor_type: string; value: number; unit: string; recorded_at: string },
+  reading: {
+    sensor_type: string;
+    value: number;
+    unit: string;
+    recorded_at: string;
+  },
 ) {
   const response = await fetch(`${API_URL}/devices/${deviceId}/data`, {
     method: "POST",
@@ -71,7 +76,10 @@ export async function postSensorData(
   return response.json();
 }
 
-export async function registerDevice(payload: { name: string; vendor?: string }) {
+export async function registerDevice(payload: {
+  name: string;
+  vendor?: string;
+}) {
   const response = await fetch(`${API_URL}/devices`, {
     method: "POST",
     headers: await authHeaders(),
@@ -83,4 +91,15 @@ export async function registerDevice(payload: { name: string; vendor?: string })
   }
 
   return response.json();
+}
+
+export async function deleteDevice(id: string) {
+  const response = await fetch(`${API_URL}/devices/${id}`, {
+    method: "DELETE",
+    headers: await authHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to delete device");
+  }
 }

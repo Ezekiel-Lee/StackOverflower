@@ -1,12 +1,15 @@
 import { auth } from "@/lib/firebase/firebase";
 
-const API_URL = "http://localhost:8000"; // matches src/lib/api.ts
+const API_URL = process.env.EXPO_PUBLIC_API_URL; // matches src/lib/api.ts
 
 async function authHeaders() {
   const user = auth.currentUser;
   if (!user) throw new Error("No authenticated Firebase user");
   const token = await user.getIdToken();
-  return { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+  return {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  };
 }
 
 export async function startDeviceSession(deviceId: string): Promise<string> {
@@ -19,7 +22,11 @@ export async function startDeviceSession(deviceId: string): Promise<string> {
   return session.id;
 }
 
-export async function endDeviceSession(deviceId: string, sessionId: string, reason: string) {
+export async function endDeviceSession(
+  deviceId: string,
+  sessionId: string,
+  reason: string,
+) {
   await fetch(`${API_URL}/devices/${deviceId}/sessions/${sessionId}`, {
     method: "PATCH",
     headers: await authHeaders(),
