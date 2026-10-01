@@ -2,30 +2,55 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
-// Tracks the currently-connected wearable's backend device id, shared
-// between the Connect screen (which sets it once a device is registered
-// and synced) and the Dashboard/background-sync code (which reads it).
-// Persisted so the connection survives an app restart.
+export type DeviceConnectionType = "health-connect" | "ble";
+
 type DeviceState = {
   connectedDeviceId: string | null;
+
+  connectedDeviceType: DeviceConnectionType | null;
+
   setConnectedDeviceId: (deviceId: string | null) => void;
+
+  setConnectedDeviceType: (type: DeviceConnectionType | null) => void;
+
+  clearConnectedDevice: () => void;
 };
 
 export const useDeviceStore = create<DeviceState>()(
   persist(
     (set) => ({
       connectedDeviceId: null,
-      setConnectedDeviceId: (deviceId) => set({ connectedDeviceId: deviceId }),
+
+      connectedDeviceType: null,
+
+      setConnectedDeviceId: (deviceId) =>
+        set({
+          connectedDeviceId: deviceId,
+        }),
+
+      setConnectedDeviceType: (type) =>
+        set({
+          connectedDeviceType: type,
+        }),
+
+      clearConnectedDevice: () =>
+        set({
+          connectedDeviceId: null,
+          connectedDeviceType: null,
+        }),
     }),
     {
       name: "device-config",
+
       storage: createJSONStorage(() => AsyncStorage),
     },
   ),
 );
 
-// Non-hook accessor for use outside React components (e.g. the background
-// sync task in src/lib/health/backgroundSync.ts, which can't call hooks).
 export function getConnectedDeviceId(): string | null {
   return useDeviceStore.getState().connectedDeviceId;
+}
+
+export function getConnectedDeviceType(): DeviceConnectionType | null {
+  return useDeviceStore.getState().connectedDeviceType;
 }

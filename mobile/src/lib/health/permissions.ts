@@ -5,27 +5,77 @@ import {
 } from "react-native-health-connect";
 
 const PERMISSIONS = [
-  { accessType: "read" as const, recordType: "HeartRate" as const },
-  { accessType: "read" as const, recordType: "Steps" as const },
-  { accessType: "read" as const, recordType: "SleepSession" as const },
+  {
+    accessType: "read" as const,
+    recordType: "HeartRate" as const,
+  },
+  {
+    accessType: "read" as const,
+    recordType: "Steps" as const,
+  },
+  {
+    accessType: "read" as const,
+    recordType: "SleepSession" as const,
+  },
 ];
 
-// Call this one function -- it handles initializing, checking, and
-// (if needed) requesting permission, all in one place.
-export async function ensureHealthConnectPermissions(): Promise<boolean> {
-  const isInitialized = await initialize();
-  if (!isInitialized) {
-    console.warn("Health Connect is not installed on this device");
+export async function isHealthConnectAvailable(): Promise<boolean> {
+  try {
+    const initialized = await initialize();
+
+    console.log("[Health Connect] initialized:", initialized);
+
+    return initialized;
+  } catch (error) {
+    console.warn("[Health Connect] initialization failed:", error);
+
     return false;
   }
+}
 
-  const granted = await getGrantedPermissions();
-  const alreadyHasAll = PERMISSIONS.every((p) =>
-    granted.some((g) => g.recordType === p.recordType && g.accessType === p.accessType),
-  );
+export async function ensureHealthConnectPermissions(): Promise<boolean> {
+  try {
+    // IMPORTANT:
+    // initialize() must complete before requestPermission().
+    const initialized = await initialize();
 
-  if (alreadyHasAll) return true;
+    if (!initialized) {
+      console.warn("[Health Connect] not available");
+      return false;
+    }
 
-  const result = await requestPermission(PERMISSIONS);
-  return result.length === PERMISSIONS.length;
+    const granted = await getGrantedPermissions();
+
+    const alreadyGranted = PERMISSIONS.every((permission) =>
+      granted.some(
+        (item) =>
+          item.recordType === permission.recordType &&
+          item.accessType === permission.accessType,
+      ),
+    );
+
+    if (alreadyGranted) {
+      console.log("[Health Connect] all permissions already granted");
+
+      return true;
+    }
+
+    console.log("[Health Connect] requesting permissions...");
+
+    const result = await requestPermission(PERMISSIONS);
+
+    console.log("[Health Connect] permission result:", result);
+
+    return PERMISSIONS.every((permission) =>
+      result.some(
+        (item) =>
+          item.recordType === permission.recordType &&
+          item.accessType === permission.accessType,
+      ),
+    );
+  } catch (error) {
+    console.error("[Health Connect] permission request failed:", error);
+
+    return false;
+  }
 }

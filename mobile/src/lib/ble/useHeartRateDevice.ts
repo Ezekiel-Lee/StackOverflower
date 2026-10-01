@@ -1,62 +1,117 @@
-import { useState, useCallback, useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Device } from "react-native-ble-plx";
+
 import { requestBlePermissions } from "./permissions";
-import { scanForHeartRateDevices, connectAndMonitorHeartRate, bleManager } from "./heartRateScanner";
+import { connectAndMonitorHeartRate, getBleManager } from "./heartRateScanner";
 import { sendHeartRateReading } from "./syncBleHeartRate";
 import { startDeviceSession, endDeviceSession } from "./sessionTracking";
 
-export type BleConnectStatus = "idle" | "scanning" | "connecting" | "connected" | "failed";
+export type BleConnectStatus = "idle" | "connecting" | "connected" | "failed";
 
-export function useHeartRateDevice(deviceId: string) {
+export function useHeartRateDevice() {
   const [status, setStatus] = useState<BleConnectStatus>("idle");
+
   const cleanupRef = useRef<(() => void) | null>(null);
+
   const sessionIdRef = useRef<string | null>(null);
 
-  const connect = useCallback(async () => {
-    const granted = await requestBlePermissions();
-    if (!granted) {
-      setStatus("failed");
-      return;
-    }
+  const backendDeviceIdRef = useRef<string | null>(null);
 
-    setStatus("scanning");
+  const connectToDevice = useCallback(
+    async (device: Device, backendDeviceId: string) => {
+      const granted = await requestBlePermissions();
 
-    scanForHeartRateDevices(async (device: Device) => {
-      bleManager.stopDeviceScan();
+      if (!granted) {
+        setStatus("failed");
+
+        throw new Error("Bluetooth permission was not granted");
+      }
+
       setStatus("connecting");
 
+      backendDeviceIdRef.current = backendDeviceId;
+
       try {
-        sessionIdRef.current = await startDeviceSession(deviceId);
+        const sessionId = await startDeviceSession(backendDeviceId);
+
+        sessionIdRef.current = sessionId;
 
         const cleanup = await connectAndMonitorHeartRate(
           device,
-          (bpm, timestamp) => {
-            sendHeartRateReading(deviceId, bpm, timestamp).catch(console.warn);
+          async (bpm, timestamp) => {
+            try {
+              await sendHeartRateReading(backendDeviceId, bpm, timestamp);
+            } catch (error) {
+              console.warn("Failed to send heart rate reading:", error);
+            }
           },
           async (reason) => {
-            if (sessionIdRef.current) {
-              await endDeviceSession(deviceId, sessionIdRef.current, reason);
+            const currentSessionId = sessionIdRef.current;
+
+            sessionIdRef.current = null;
+            cleanupRef.current = null;
+
+            if (currentSessionId) {
+              try {
+                await endDeviceSession(
+                  backendDeviceId,
+                  currentSessionId,
+                  reason,
+                );
+              } catch (error) {
+                console.warn("Failed to end BLE session:", error);
+              }
             }
+
             setStatus("failed");
           },
         );
 
         cleanupRef.current = cleanup;
         setStatus("connected");
-      } catch (e) {
-        console.warn("Connect failed:", e);
+      } catch (error) {
+        console.warn("BLE connection failed:", error);
+
+        sessionIdRef.current = null;
+        cleanupRef.current = null;
+        backendDeviceIdRef.current = null;
+
         setStatus("failed");
+
+        throw error;
       }
-    });
-  }, [deviceId]);
+    },
+    [],
+  );
 
   const disconnect = useCallback(async () => {
-    cleanupRef.current?.();
-    if (sessionIdRef.current) {
-      await endDeviceSession(deviceId, sessionIdRef.current, "user");
-    }
-    setStatus("idle");
-  }, [deviceId]);
+    getBleManager().stopDeviceScan();
 
-  return { status, connect, disconnect };
+    cleanupRef.current?.();
+    cleanupRef.current = null;
+
+    const currentSessionId = sessionIdRef.current;
+
+    sessionIdRef.current = null;
+
+    const backendDeviceId = backendDeviceIdRef.current;
+
+    backendDeviceIdRef.current = null;
+
+    if (backendDeviceId && currentSessionId) {
+      try {
+        await endDeviceSession(backendDeviceId, currentSessionId, "user");
+      } catch (error) {
+        console.warn("Failed to end BLE session:", error);
+      }
+    }
+
+    setStatus("idle");
+  }, []);
+
+  return {
+    status,
+    connectToDevice,
+    disconnect,
+  };
 }

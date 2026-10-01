@@ -1,4 +1,4 @@
-import { ScrollView, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useState } from "react";
 
@@ -37,12 +37,9 @@ export default function Dashboard() {
     (state) => state.removeSummarySensor,
   );
 
-  // Set by the Connect screen (src/app/(tabs)/connect.tsx) once a device is
-  // registered and its first sync completes -- persisted, so it survives
-  // an app restart.
-  const connectedDevice = useDeviceStore((state) => state.connectedDeviceId);
+  const connectedDeviceId = useDeviceStore((state) => state.connectedDeviceId);
 
-  const { sensorData, loading } = useSensorData(connectedDevice);
+  const { sensorData, loading } = useSensorData(connectedDeviceId);
 
   const [modalType, setModalType] = useState<"graph" | "highlight" | null>(
     null,
@@ -72,34 +69,54 @@ export default function Dashboard() {
 
         <DashboardHeader displayName={user?.displayName} />
 
-        {/* Graph */}
+        {/* No connected device */}
 
-        {graphSensor ? (
-          <SensorGraph
-            sensorType={graphSensor}
-            sensorData={sensorData}
-            onChange={() => setModalType("graph")}
-            onRemove={removeGraph}
-          />
-        ) : (
-          <View className="mx-4 mt-4">
-            <EmptyGraph onAdd={() => setModalType("graph")} />
+        {!connectedDeviceId ? (
+          <View className="mx-4 mt-4 rounded-2xl border-4 border-[#a0a0a0] bg-[#e9e9e9] p-6">
+            <View className="items-center">
+              <Ionicons name="watch-outline" size={42} color="#000" />
+
+              <Text className="mt-3 text-center font-[Coiny] text-xl text-black">
+                No device connected
+              </Text>
+
+              <Text className="mt-2 text-center font-[Coiny] text-sm text-[#727272]">
+                Connect a wearable to start receiving sensor data.
+              </Text>
+            </View>
           </View>
+        ) : (
+          <>
+            {/* Graph */}
+
+            {graphSensor ? (
+              <SensorGraph
+                sensorType={graphSensor}
+                sensorData={sensorData}
+                onChange={() => setModalType("graph")}
+                onRemove={removeGraph}
+              />
+            ) : (
+              <View className="mx-4 mt-4">
+                <EmptyGraph onAdd={() => setModalType("graph")} />
+              </View>
+            )}
+
+            {/* Highlights */}
+
+            <DashboardSection
+              title="Highlights"
+              icon={<Highlights width={24} height={24} />}
+            />
+
+            <HighlightsGrid
+              sensorTypes={summarySensors}
+              sensorData={sensorData}
+              onAdd={() => setModalType("highlight")}
+              onRemove={removeSummarySensor}
+            />
+          </>
         )}
-
-        {/* Highlights */}
-
-        <DashboardSection
-          title="Highlights"
-          icon={<Highlights width={24} height={24} />}
-        />
-
-        <HighlightsGrid
-          sensorTypes={summarySensors}
-          sensorData={sensorData}
-          onAdd={() => setModalType("highlight")}
-          onRemove={removeSummarySensor}
-        />
       </ScrollView>
 
       {/* Notifications */}

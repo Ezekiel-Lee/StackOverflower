@@ -2,6 +2,10 @@ import { auth } from "./firebase/firebase";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
+if (!API_URL) {
+  throw new Error("EXPO_PUBLIC_API_URL is not configured");
+}
+
 async function authHeaders() {
   const user = auth.currentUser;
 
