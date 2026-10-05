@@ -11,12 +11,18 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { getData } from "@/lib/api";
 import { getSensorStyle } from "@/lib/sensorStyles";
-import { getLatestReading } from "@/lib/sensorUtils";
+import {
+  formatSensorDisplay,
+  formatSensorName,
+  getLatestReading,
+  getVisibleSensorTypes,
+} from "@/lib/sensorUtils";
+import { useSelectedDevice } from "@/hooks/useSelectedDevice";
 import type { SensorData } from "@/types/sensor";
-import { useDeviceStore } from "@/store/deviceStore";
 
 export default function Summary() {
-  const connectedDeviceId = useDeviceStore((state) => state.connectedDeviceId);
+  const { selectedDevice, connectedDeviceId, loading: deviceLoading } =
+    useSelectedDevice();
 
   const [sensorData, setSensorData] = useState<SensorData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,11 +61,13 @@ export default function Summary() {
     }
   }
 
-  const sensorTypes = Array.from(
-    new Set(sensorData.map((reading) => reading.sensor_type)),
-  );
+  const sensorTypes = selectedDevice
+    ? getVisibleSensorTypes(sensorData, selectedDevice.supported_sensors)
+    : [];
 
-  if (loading) {
+  const showLoading = deviceLoading || (!!connectedDeviceId && loading);
+
+  if (showLoading) {
     return (
       <SafeAreaView className="flex-1">
         <View className="flex-1 items-center justify-center">
@@ -91,7 +99,7 @@ export default function Summary() {
     );
   }
 
-  if (sensorData.length === 0) {
+  if (sensorTypes.length === 0) {
     return (
       <SafeAreaView className="flex-1">
         <ScrollView
@@ -108,12 +116,13 @@ export default function Summary() {
             <Ionicons name="analytics-outline" size={56} color="#166534" />
 
             <Text className="mt-4 font-coiny text-2xl text-dark-green">
-              No sensor data
+              No sensors to show
             </Text>
 
             <Text className="mt-2 text-center text-gray-500">
-              Sensor readings will appear here once your wearable starts syncing
-              data.
+              {selectedDevice?.supported_sensors?.length === 0
+                ? "This device has no supported metrics."
+                : "Sensor readings will appear here once your wearable starts syncing data."}
             </Text>
           </View>
         </ScrollView>
@@ -143,11 +152,6 @@ export default function Summary() {
         <View className="mt-6 gap-4">
           {sensorTypes.map((sensorType) => {
             const reading = getLatestReading(sensorData, sensorType);
-
-            if (!reading) {
-              return null;
-            }
-
             const style = getSensorStyle(sensorType);
 
             return (
@@ -167,7 +171,9 @@ export default function Summary() {
 
                     <View className="ml-4">
                       <Text className="font-coiny text-lg text-gray-700">
-                        {style.name}
+                        {style.name === "Unknown Sensor"
+                          ? formatSensorName(sensorType)
+                          : style.name}
                       </Text>
 
                       <Text className="mt-1 text-sm text-gray-500">
@@ -177,17 +183,19 @@ export default function Summary() {
                   </View>
 
                   <View className="items-end">
-                    <View className="flex-row items-baseline">
+                    {reading ? (
                       <Text className="font-coiny text-2xl text-dark-green">
-                        {reading.value}
+                        {formatSensorDisplay(
+                          sensorType,
+                          reading.value,
+                          reading.unit,
+                        )}
                       </Text>
-
-                      {reading.unit && (
-                        <Text className="ml-1 text-sm text-gray-500">
-                          {reading.unit}
-                        </Text>
-                      )}
-                    </View>
+                    ) : (
+                      <Text className="text-sm text-gray-500">
+                        No readings available
+                      </Text>
+                    )}
                   </View>
                 </View>
               </View>

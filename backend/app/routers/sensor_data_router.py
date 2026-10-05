@@ -1,13 +1,14 @@
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app import models, schemas, auth
 from app.database import get_db
-from app.routers.devices_router import _get_owned_device
+from app.sensors import normalize_sensor_type
 from app.services import check_thresholds as _check_thresholds
+from app.services import get_owned_device as _get_owned_device
 
 router = APIRouter(prefix="/devices/{device_id}/data", tags=["sensor-data"])
 
@@ -26,11 +27,17 @@ def ingest_reading(
     aggregate/throttle client-side (10-30s interval or on meaningful
     change) before hitting this endpoint.
     """
-    _get_owned_device(device_id, current_user, db)
+    device = _get_owned_device(device_id, current_user, db)
+    sensor_type = normalize_sensor_type(payload.sensor_type)
+    if device.supported_sensors is not None and sensor_type not in device.supported_sensors:
+        raise HTTPException(
+            status_code=422,
+            detail=f"sensor_type '{sensor_type}' is not supported by this device",
+        )
 
     reading = models.SensorReading(
         device_id=device_id,
-        sensor_type=payload.sensor_type,
+        sensor_type=sensor_type,
         value=payload.value,
         unit=payload.unit,
         recorded_at=payload.recorded_at or datetime.utcnow(),
@@ -59,7 +66,7 @@ def get_history(
 
     q = db.query(models.SensorReading).filter(models.SensorReading.device_id == device_id)
     if sensor_type:
-        q = q.filter(models.SensorReading.sensor_type == sensor_type)
+        q = q.filter(models.SensorReading.sensor_type == normalize_sensor_type(sensor_type))
     if from_:
         q = q.filter(models.SensorReading.recorded_at >= from_)
     if to:

@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app import models
 from app.normalizer.base import VendorAuthError
 from app.normalizer.registry import get_adapter
+from app.sensors import normalize_sensor_type
 from app.services import check_thresholds as _check_thresholds
 
 # Readings older than this are never fetched, even on a device's very first
@@ -45,10 +46,14 @@ def sync_device(device: models.Device, db: Session) -> int:
     readings = adapter.fetch_readings(device.credential.access_token, since=since)
 
     owner = device.owner
+    stored = 0
     for normalized in readings:
+        sensor_type = normalize_sensor_type(normalized.sensor_type)
+        if device.supported_sensors is not None and sensor_type not in device.supported_sensors:
+            continue
         reading = models.SensorReading(
             device_id=device.id,
-            sensor_type=normalized.sensor_type,
+            sensor_type=sensor_type,
             value=normalized.value,
             unit=normalized.unit,
             recorded_at=normalized.recorded_at,
@@ -58,6 +63,7 @@ def sync_device(device: models.Device, db: Session) -> int:
         db.commit()
         db.refresh(reading)
         _check_thresholds(reading, owner, db)
+        stored += 1
 
     battery = adapter.fetch_battery_level(device.credential.access_token)
     if battery is not None:
@@ -66,4 +72,4 @@ def sync_device(device: models.Device, db: Session) -> int:
     device.last_synced_at = datetime.utcnow()
     db.commit()
 
-    return len(readings)
+    return stored

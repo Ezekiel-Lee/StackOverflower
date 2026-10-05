@@ -2,11 +2,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { Text, TouchableOpacity, View } from "react-native";
 
 import { getSensorStyle } from "@/lib/sensorStyles";
+import { formatSensorDisplay, formatSensorName } from "@/lib/sensorUtils";
 import type { SensorData } from "@/types/sensor";
 
 type Props = {
   sensorType: string;
-  reading: SensorData;
+  reading: SensorData | null;
   onRemove: () => void;
 };
 
@@ -30,16 +31,18 @@ export default function HighlightCard({
       </View>
 
       <Text className="mt-4 font-coiny text-sm text-gray-600">
-        {style.name}
+        {style.name === "Unknown Sensor"
+          ? formatSensorName(sensorType)
+          : style.name}
       </Text>
 
-      <View className="mt-1 flex-row items-baseline">
-        <Text className="font-coiny text-2xl text-dark-green">
-          {reading.value}
+      {reading ? (
+        <Text className="mt-1 font-coiny text-2xl text-dark-green">
+          {formatSensorDisplay(sensorType, reading.value, reading.unit)}
         </Text>
-
-        <Text className="ml-1 text-sm text-gray-500">{reading.unit}</Text>
-      </View>
+      ) : (
+        <Text className="mt-1 text-sm text-gray-500">No readings available.</Text>
+      )}
     </View>
   );
 }

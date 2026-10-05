@@ -39,7 +39,10 @@ def test_link_vendor_then_sync_ingests_readings(client, auth_headers):
 
     history = client.get(f"/devices/{device['id']}/data", headers=auth_headers).json()
     assert len(history) == body["readings_synced"]
-    assert all(r["sensor_type"] == "heartRate" for r in history)
+    types = {r["sensor_type"] for r in history}
+    assert "heartRate" in types
+    assert "stepCount" in types
+    assert "stress" not in types
 
 
 def test_sync_triggers_alert_notification_on_breach(client, auth_headers):
@@ -83,3 +86,23 @@ def test_sync_requires_owned_device(client, auth_headers):
 def test_sync_requires_auth(client):
     resp = client.post("/devices/some-id/sync")
     assert resp.status_code == 401
+
+
+def test_sync_filters_to_declared_supported_sensors(client, auth_headers):
+    device = client.post(
+        "/devices",
+        json={"name": "Limited Watch", "supported_sensors": ["heartRate", "stepCount"]},
+        headers=auth_headers,
+    ).json()
+    client.post(
+        f"/devices/{device['id']}/link-vendor",
+        json={"vendor": "mock", "access_token": "fake-vendor-token"},
+        headers=auth_headers,
+    )
+
+    sync_resp = client.post(f"/devices/{device['id']}/sync", headers=auth_headers)
+    assert sync_resp.status_code == 200
+    history = client.get(f"/devices/{device['id']}/data", headers=auth_headers).json()
+    types = {r["sensor_type"] for r in history}
+    assert types == {"heartRate", "stepCount"}
+    assert sync_resp.json()["readings_synced"] == len(history)

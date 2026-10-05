@@ -15,6 +15,7 @@ Design notes:
 from datetime import datetime
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     Column,
     DateTime,
@@ -80,6 +81,10 @@ class Device(Base):
     vendor_device_id = Column(String, nullable=True)  # the vendor's own ID for this device, if any
     battery_level = Column(Integer, nullable=True)  # 0-100, updated on each sync
     last_synced_at = Column(DateTime, nullable=True)
+    # JSON list of canonical sensor names, e.g. ["heartRate","stepCount"].
+    # None = undeclared/legacy (do not infer "no sensors"); [] = none;
+    # a list is authoritative for that device.
+    supported_sensors = Column(JSON, nullable=True)
 
     owner = relationship("User", back_populates="devices")
     readings = relationship("SensorReading", back_populates="device", cascade="all, delete-orphan")

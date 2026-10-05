@@ -52,10 +52,6 @@ export default function HighlightsGrid({
         {sensorTypes.map((sensorType) => {
           const reading = getLatestReading(sensorData, sensorType);
 
-          if (!reading) {
-            return null;
-          }
-
           return (
             <HighlightCard
               key={sensorType}

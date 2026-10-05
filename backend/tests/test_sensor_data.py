@@ -62,7 +62,7 @@ def test_get_history_filters_by_sensor_type(client, auth_headers):
     )
     body = resp.json()
     assert len(body) == 1
-    assert body[0]["sensor_type"] == "steps"
+    assert body[0]["sensor_type"] == "stepCount"
 
 
 def test_ingest_breaching_threshold_creates_notification(client, auth_headers):
@@ -104,3 +104,42 @@ def test_ingest_within_threshold_creates_no_notification(client, auth_headers):
 
     resp = client.get("/notifications", headers=auth_headers)
     assert resp.json() == []
+
+
+def test_ingest_normalizes_steps_alias(client, auth_headers):
+    device = _create_device(client, auth_headers)
+    resp = client.post(
+        f"/devices/{device['id']}/data",
+        json={"sensor_type": "steps", "value": 500, "unit": "steps"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 201
+    assert resp.json()["sensor_type"] == "stepCount"
+
+
+def test_ingest_rejects_unsupported_sensor_when_capabilities_declared(client, auth_headers):
+    device = client.post(
+        "/devices",
+        json={"name": "Band B", "supported_sensors": ["heartRate", "stepCount", "activeEnergy"]},
+        headers=auth_headers,
+    ).json()
+
+    resp = client.post(
+        f"/devices/{device['id']}/data",
+        json={"sensor_type": "bloodOxygen", "value": 97, "unit": "percent"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 422
+
+
+def test_ingest_accepts_any_type_when_capabilities_undeclared(client, auth_headers):
+    device = _create_device(client, auth_headers)
+    assert device["supported_sensors"] is None
+
+    resp = client.post(
+        f"/devices/{device['id']}/data",
+        json={"sensor_type": "bloodOxygen", "value": 97, "unit": "percent"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 201
+    assert resp.json()["sensor_type"] == "bloodOxygen"

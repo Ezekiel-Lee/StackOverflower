@@ -22,6 +22,8 @@ import { useHeartRateDevice } from "@/lib/ble/useHeartRateDevice";
 
 import { useDeviceStore } from "@/store/deviceStore";
 
+import type { Device as BackendDevice } from "@/types/device";
+
 import { useCallback, useEffect, useState } from "react";
 
 import { ActivityIndicator, Alert, Pressable, Text, View } from "react-native";
@@ -31,12 +33,6 @@ import { Device } from "react-native-ble-plx";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-
-type BackendDevice = {
-  id: string;
-  name: string;
-  battery?: number;
-};
 
 type ConnectionStatus =
   | "idle"
@@ -79,12 +75,6 @@ export default function Connect() {
   const { connectToDevice, disconnect: disconnectBleDevice } =
     useHeartRateDevice();
 
-  /*
-   * --------------------------------------------------
-   * Fetch registered devices
-   * --------------------------------------------------
-   */
-
   const fetchDevices = useCallback(async () => {
     try {
       const data = await getDevices();
@@ -97,12 +87,6 @@ export default function Connect() {
     }
   }, []);
 
-  /*
-   * --------------------------------------------------
-   * Initial load
-   * --------------------------------------------------
-   */
-
   useEffect(() => {
     fetchDevices();
 
@@ -111,12 +95,6 @@ export default function Connect() {
     };
   }, [fetchDevices]);
 
-  /*
-   * --------------------------------------------------
-   * Cancel BLE search
-   * --------------------------------------------------
-   */
-
   function cancelBleSearch() {
     getBleManager().stopDeviceScan();
 
@@ -124,23 +102,6 @@ export default function Connect() {
     setConnectionStatus("idle");
     setErrorMessage(null);
   }
-
-  /*
-   * --------------------------------------------------
-   * Main add-device flow
-   *
-   * Health Connect is always attempted first.
-   *
-   * HC available + permission granted
-   *       -> Health Connect
-   *
-   * HC unavailable
-   *       -> BLE
-   *
-   * HC permission denied
-   *       -> BLE
-   * --------------------------------------------------
-   */
 
   async function handleAddDevice() {
     setErrorMessage(null);
@@ -152,20 +113,10 @@ export default function Connect() {
       if (available) {
         const connected = await connectHealthConnect();
 
-        /*
-         * Health Connect was available but permission
-         * wasn't granted, so fall back to BLE.
-         */
-
         if (!connected) {
           await startBleFallback();
         }
       } else {
-        /*
-         * Health Connect isn't available.
-         * Fall back to BLE.
-         */
-
         await startBleFallback();
       }
     } catch (error) {
@@ -177,28 +128,10 @@ export default function Connect() {
     }
   }
 
-  /*
-   * --------------------------------------------------
-   * Health Connect
-   *
-   * Returns:
-   * true  = Health Connect connected
-   * false = permission not granted -> use BLE
-   * throws = actual Health Connect failure
-   * --------------------------------------------------
-   */
-
   async function connectHealthConnect(): Promise<boolean> {
     setConnectionStatus("requesting-permission");
 
     const granted = await ensureHealthConnectPermissions();
-
-    /*
-     * Permission wasn't granted.
-     *
-     * This is NOT treated as an error anymore.
-     * The caller will start BLE instead.
-     */
 
     if (!granted) {
       console.log(
@@ -236,12 +169,6 @@ export default function Connect() {
     return true;
   }
 
-  /*
-   * --------------------------------------------------
-   * BLE fallback
-   * --------------------------------------------------
-   */
-
   async function startBleFallback() {
     setErrorMessage(null);
 
@@ -274,12 +201,6 @@ export default function Connect() {
     });
   }
 
-  /*
-   * --------------------------------------------------
-   * Select BLE device
-   * --------------------------------------------------
-   */
-
   async function handleSelectBleDevice(device: Device) {
     getBleManager().stopDeviceScan();
 
@@ -290,19 +211,10 @@ export default function Connect() {
       const deviceName =
         device.name || device.localName || "Bluetooth Wearable";
 
-      /*
-       * Register the actual discovered BLE device.
-       */
-
       const registeredDevice = await registerDevice({
         name: deviceName,
         vendor: "BLE",
       });
-
-      /*
-       * Connect to the exact Device returned
-       * from the BLE scan.
-       */
 
       await connectToDevice(device, registeredDevice.id);
 
@@ -326,21 +238,9 @@ export default function Connect() {
     }
   }
 
-  /*
-   * --------------------------------------------------
-   * Select an existing registered device
-   * --------------------------------------------------
-   */
-
   function handleSelectDevice(deviceId: string) {
     setConnectedDeviceId(deviceId);
   }
-
-  /*
-   * --------------------------------------------------
-   * Remove device confirmation
-   * --------------------------------------------------
-   */
 
   function handleRemoveDevice(device: BackendDevice) {
     Alert.alert(
@@ -360,30 +260,14 @@ export default function Connect() {
     );
   }
 
-  /*
-   * --------------------------------------------------
-   * Remove device
-   * --------------------------------------------------
-   */
-
   async function removeDevice(device: BackendDevice) {
     setConnectionStatus("removing");
     setErrorMessage(null);
 
     try {
-      /*
-       * Only disconnect through BLE if the device
-       * being removed is actually a BLE device.
-       */
-
       if (connectedDeviceId === device.id && connectedDeviceType === "ble") {
         await disconnectBleDevice();
       }
-
-      /*
-       * Clear the local selected device regardless
-       * of whether it was Health Connect or BLE.
-       */
 
       if (connectedDeviceId === device.id) {
         clearConnectedDevice();
@@ -403,12 +287,6 @@ export default function Connect() {
     }
   }
 
-  /*
-   * --------------------------------------------------
-   * UI state
-   * --------------------------------------------------
-   */
-
   const isBusy =
     connectionStatus === "checking-health-connect" ||
     connectionStatus === "requesting-permission" ||
@@ -419,12 +297,6 @@ export default function Connect() {
 
   const isRemoving = connectionStatus === "removing";
 
-  /*
-   * --------------------------------------------------
-   * Render
-   * --------------------------------------------------
-   */
-
   return (
     <SafeAreaView className="flex-1 px-10 pt-4">
       <Text className="text-3xl font-[Coiny] text-black/65">Connect</Text>
@@ -434,11 +306,6 @@ export default function Connect() {
           <ActivityIndicator />
         </View>
       ) : bleDevices.length > 0 ? (
-        /*
-         * ------------------------------------------------
-         * BLE device selection screen
-         * ------------------------------------------------
-         */
         <View className="flex-1 pt-8">
           <View className="mb-6 flex-row items-center justify-between">
             <Text className="font-[Coiny] uppercase text-[#727272]">
@@ -500,11 +367,6 @@ export default function Connect() {
           </View>
         </View>
       ) : devices.length === 0 ? (
-        /*
-         * ------------------------------------------------
-         * Empty state
-         * ------------------------------------------------
-         */
         <View className="flex-1 items-center justify-center">
           <Pressable
             onPress={handleAddDevice}
@@ -580,11 +442,6 @@ export default function Connect() {
           )}
         </View>
       ) : (
-        /*
-         * ------------------------------------------------
-         * Registered devices
-         * ------------------------------------------------
-         */
         <View className="flex-1">
           <View className="flex-row items-center justify-between pt-8">
             <Text className="font-[Coiny] uppercase text-[#727272]">
@@ -610,12 +467,16 @@ export default function Connect() {
             </Pressable>
           </View>
 
+          <Text className="pt-2 font-[Coiny] text-sm text-[#727272]">
+            Select a wearable to use it on Dashboard and Summary
+          </Text>
+
           <View className="gap-6 pt-6">
             {devices.map((device) => (
               <DeviceCard
                 key={device.id}
                 name={device.name}
-                battery={device.battery ?? 0}
+                battery={device.battery_level}
                 selected={connectedDeviceId === device.id}
                 removing={isRemoving}
                 onSelect={() => handleSelectDevice(device.id)}

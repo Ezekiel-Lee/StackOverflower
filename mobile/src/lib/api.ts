@@ -1,4 +1,6 @@
 import { auth } from "./firebase/firebase";
+import type { Device } from "@/types/device";
+import type { SensorData } from "@/types/sensor";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
@@ -34,7 +36,7 @@ export async function syncUser() {
   return response.json();
 }
 
-export async function getDevices() {
+export async function getDevices(): Promise<Device[]> {
   const response = await fetch(`${API_URL}/devices`, {
     headers: await authHeaders(),
   });
@@ -46,7 +48,7 @@ export async function getDevices() {
   return response.json();
 }
 
-export async function getData(id: string) {
+export async function getData(id: string): Promise<SensorData[]> {
   const response = await fetch(`${API_URL}/devices/${id}/data`, {
     headers: await authHeaders(),
   });

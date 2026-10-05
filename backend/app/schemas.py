@@ -5,9 +5,11 @@ Keep these in sync with the wireframe review checklist: every field a screen
 displays or edits should map to a field here.
 """
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
-from pydantic import BaseModel, ConfigDict, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
+
+from app.sensors import normalize_sensor_list
 
 
 # ---------- Users / Auth ----------
@@ -32,11 +34,23 @@ class DeviceCreate(BaseModel):
     model: Optional[str] = None
     ble_identifier: Optional[str] = None
     firmware_version: Optional[str] = None
+    supported_sensors: Optional[List[str]] = None
+
+    @field_validator("supported_sensors")
+    @classmethod
+    def _normalize_supported_sensors(cls, value: Optional[List[str]]) -> Optional[List[str]]:
+        return normalize_sensor_list(value)
 
 
 class DeviceUpdate(BaseModel):
     name: Optional[str] = None
     model: Optional[str] = None
+    supported_sensors: Optional[List[str]] = None
+
+    @field_validator("supported_sensors")
+    @classmethod
+    def _normalize_supported_sensors(cls, value: Optional[List[str]]) -> Optional[List[str]]:
+        return normalize_sensor_list(value)
 
 
 class DeviceOut(BaseModel):
@@ -51,6 +65,7 @@ class DeviceOut(BaseModel):
     vendor_device_id: Optional[str]
     battery_level: Optional[int]
     last_synced_at: Optional[datetime]
+    supported_sensors: Optional[List[str]] = None
 
     model_config = ConfigDict(from_attributes=True)
 
