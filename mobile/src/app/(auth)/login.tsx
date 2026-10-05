@@ -64,6 +64,7 @@ export default function Login() {
           render={({ field: { onChange, onBlur, value } }) => (
             <TextInput
               className="rounded-lg border border-gray-300 px-4 py-3 focus:border-black"
+              placeholderTextColor="#9CA3AF"
               placeholder="Enter your email"
               keyboardType="email-address"
               autoCapitalize="none"
@@ -90,8 +91,9 @@ export default function Login() {
           name="password"
           render={({ field: { onChange, onBlur, value } }) => (
             <TextInput
-              className="rounded-lg border border-gray-300 px-4 py-3 focus:border-black"
+              className="rounded-lg  border border-gray-300 px-4 py-3 focus:border-black"
               placeholder="Enter your password"
+              placeholderTextColor="#9CA3AF"
               secureTextEntry
               value={value}
               onChangeText={onChange}
@@ -114,14 +116,12 @@ export default function Login() {
         <Text className="text-center font-semibold text-white">Sign In</Text>
       </Pressable>
       <Text className="font-bold pt-4 text-center">
-        {" "}
-        Don't have an account?{" "}
+        Don't have an account?
         <Link href="/(auth)/signup">
-          {" "}
           <Text className=" text-[#2563EB]  underline "> Sign up</Text>
         </Link>
       </Text>
-      <View className="gap-5 pt-12 flex-row justify-center ">
+      <View className="gap-5 pt-12 justify-center ">
         <GoogleSignInButton onPress={onGoogleSignIn} />
         <AppleSignInButton onPress={onAppleSignIn} />
       </View>

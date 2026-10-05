@@ -1,0 +1,41 @@
+# Dependencies
+
+node_modules/
+
+# Local native projects
+
+android/
+ios/
+
+# Expo generated files
+
+.expo/
+dist/
+build/
+
+# Git
+
+.git/
+
+# IDE
+
+.vscode/
+.idea/
+
+# Claude/local tooling
+
+.claude/
+
+# Logs
+
+*.log
+
+# Test/coverage output
+
+coverage/
+
+# Local environment files
+
+.env
+.env.local
+.env.*.local

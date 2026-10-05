@@ -7,11 +7,9 @@
     "icon": "./assets/images/logo.png",
     "scheme": "mobile",
     "userInterfaceStyle": "automatic",
-
     "ios": {
       "icon": "./assets/expo.icon"
     },
-
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
@@ -20,18 +18,20 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.boostedanimal.mobile"
+      "package": "com.boostedanimal.mobile",
+      "permissions": [
+        "android.permission.BLUETOOTH",
+        "android.permission.BLUETOOTH_ADMIN",
+        "android.permission.BLUETOOTH_CONNECT"
+      ]
     },
-
     "web": {
       "output": "static",
       "favicon": "./assets/images/favicon.png",
       "bundler": "metro"
     },
-
     "plugins": [
       "expo-router",
-
       [
         "expo-splash-screen",
         {
@@ -40,20 +40,20 @@
           "imageWidth": 76
         }
       ],
-
       "expo-font",
       "@react-native-google-signin/google-signin",
       "react-native-health-connect",
-
       [
         "react-native-ble-plx",
         {
           "isBackgroundEnabled": false,
-          "modes": ["peripheral", "central"],
+          "modes": [
+            "peripheral",
+            "central"
+          ],
           "bluetoothAlwaysPermission": "Allow $(PRODUCT_NAME) to connect to your wearable"
         }
       ],
-
       [
         "expo-build-properties",
         {
@@ -63,10 +63,15 @@
         }
       ]
     ],
-
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "c0d3c346-8e4b-4f42-9825-95e689a54e75"
+      }
     }
   }
 }

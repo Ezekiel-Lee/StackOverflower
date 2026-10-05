@@ -1,4 +1,12 @@
-import { View, Text, TextInput, Pressable, Image, Alert } from "react-native";
+import {
+  View,
+  Text,
+  TextInput,
+  Pressable,
+  Image,
+  Alert,
+  ScrollView,
+} from "react-native";
 import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -63,140 +71,148 @@ export default function Signup() {
   };
 
   return (
-    <SafeAreaView className="flex-1 px-12 pt-20">
-      <Image
-        source={require("@/assets/images/logo.png")}
-        className="mx-auto h-44 w-44"
-      />
+    <SafeAreaView className="flex-1 px-12">
+      <ScrollView className="">
+        <View className="pt-20">
+          <Image
+            source={require("@/assets/images/logo.png")}
+            className="mx-auto h-44 w-44"
+          />
+        </View>
 
-      {/* Display Name */}
-      <View className="mb-4">
-        <Text className="mb-2 text-sm font-medium">Display Name</Text>
+        {/* Display Name */}
+        <View className="mb-4">
+          <Text className="mb-2 text-sm font-medium">Display Name</Text>
 
-        <Controller
-          control={control}
-          name="displayName"
-          render={({ field: { onChange, onBlur, value } }) => (
-            <TextInput
-              className="rounded-lg border border-gray-300 px-4 py-3 focus:border-black"
-              placeholder="Enter your display name"
-              autoCapitalize="words"
-              autoCorrect={false}
-              value={value}
-              onChangeText={onChange}
-              onBlur={onBlur}
-            />
+          <Controller
+            control={control}
+            name="displayName"
+            render={({ field: { onChange, onBlur, value } }) => (
+              <TextInput
+                className="rounded-lg border border-gray-300 px-4 py-3 focus:border-black"
+                placeholder="Enter your display name"
+                autoCapitalize="words"
+                autoCorrect={false}
+                value={value}
+                placeholderTextColor="#9CA3AF"
+                onChangeText={onChange}
+                onBlur={onBlur}
+              />
+            )}
+          />
+
+          {errors.displayName && (
+            <Text className="mt-1 text-sm text-red-500">
+              {errors.displayName.message}
+            </Text>
           )}
-        />
+        </View>
 
-        {errors.displayName && (
-          <Text className="mt-1 text-sm text-red-500">
-            {errors.displayName.message}
-          </Text>
-        )}
-      </View>
+        {/* Email */}
+        <View className="mb-4">
+          <Text className="mb-2 text-sm font-medium">Email</Text>
 
-      {/* Email */}
-      <View className="mb-4">
-        <Text className="mb-2 text-sm font-medium">Email</Text>
+          <Controller
+            control={control}
+            name="email"
+            render={({ field: { onChange, onBlur, value } }) => (
+              <TextInput
+                className="rounded-lg border border-gray-300 px-4 py-3 focus:border-black"
+                placeholder="Enter your email"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                placeholderTextColor="#9CA3AF"
+                autoCorrect={false}
+                value={value}
+                onChangeText={onChange}
+                onBlur={onBlur}
+              />
+            )}
+          />
 
-        <Controller
-          control={control}
-          name="email"
-          render={({ field: { onChange, onBlur, value } }) => (
-            <TextInput
-              className="rounded-lg border border-gray-300 px-4 py-3 focus:border-black"
-              placeholder="Enter your email"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              value={value}
-              onChangeText={onChange}
-              onBlur={onBlur}
-            />
+          {errors.email && (
+            <Text className="mt-1 text-sm text-red-500">
+              {errors.email.message}
+            </Text>
           )}
-        />
+        </View>
 
-        {errors.email && (
-          <Text className="mt-1 text-sm text-red-500">
-            {errors.email.message}
-          </Text>
-        )}
-      </View>
+        {/* Password */}
+        <View className="mb-4">
+          <Text className="mb-2 text-sm font-medium">Password</Text>
 
-      {/* Password */}
-      <View className="mb-4">
-        <Text className="mb-2 text-sm font-medium">Password</Text>
+          <Controller
+            control={control}
+            name="password"
+            render={({ field: { onChange, onBlur, value } }) => (
+              <TextInput
+                className="rounded-lg border border-gray-300 px-4 py-3 focus:border-black"
+                placeholder="Enter your password"
+                secureTextEntry
+                placeholderTextColor="#9CA3AF"
+                value={value}
+                onChangeText={onChange}
+                onBlur={onBlur}
+              />
+            )}
+          />
 
-        <Controller
-          control={control}
-          name="password"
-          render={({ field: { onChange, onBlur, value } }) => (
-            <TextInput
-              className="rounded-lg border border-gray-300 px-4 py-3 focus:border-black"
-              placeholder="Enter your password"
-              secureTextEntry
-              value={value}
-              onChangeText={onChange}
-              onBlur={onBlur}
-            />
+          {errors.password && (
+            <Text className="mt-1 text-sm text-red-500">
+              {errors.password.message}
+            </Text>
           )}
-        />
+        </View>
 
-        {errors.password && (
-          <Text className="mt-1 text-sm text-red-500">
-            {errors.password.message}
-          </Text>
-        )}
-      </View>
+        {/* Confirm Password */}
+        <View className="mb-6">
+          <Text className="mb-2 text-sm font-medium">Confirm Password</Text>
 
-      {/* Confirm Password */}
-      <View className="mb-6">
-        <Text className="mb-2 text-sm font-medium">Confirm Password</Text>
+          <Controller
+            control={control}
+            name="confirmPassword"
+            render={({ field: { onChange, onBlur, value } }) => (
+              <TextInput
+                className="rounded-lg border border-gray-300 px-4 py-3 focus:border-black"
+                placeholder="Confirm your password"
+                secureTextEntry
+                placeholderTextColor="#9CA3AF"
+                value={value}
+                onChangeText={onChange}
+                onBlur={onBlur}
+              />
+            )}
+          />
 
-        <Controller
-          control={control}
-          name="confirmPassword"
-          render={({ field: { onChange, onBlur, value } }) => (
-            <TextInput
-              className="rounded-lg border border-gray-300 px-4 py-3 focus:border-black"
-              placeholder="Confirm your password"
-              secureTextEntry
-              value={value}
-              onChangeText={onChange}
-              onBlur={onBlur}
-            />
+          {errors.confirmPassword && (
+            <Text className="mt-1 text-sm text-red-500">
+              {errors.confirmPassword.message}
+            </Text>
           )}
-        />
+        </View>
 
-        {errors.confirmPassword && (
-          <Text className="mt-1 text-sm text-red-500">
-            {errors.confirmPassword.message}
-          </Text>
-        )}
-      </View>
+        {/* Register */}
+        <Pressable
+          onPress={handleSubmit(onSubmit)}
+          className="rounded-full bg-[#787171] py-4"
+        >
+          <Text className="text-center font-semibold text-white">Register</Text>
+        </Pressable>
 
-      {/* Register */}
-      <Pressable
-        onPress={handleSubmit(onSubmit)}
-        className="rounded-full bg-[#787171] py-4"
-      >
-        <Text className="text-center font-semibold text-white">Register</Text>
-      </Pressable>
+        {/* Sign In */}
+        <Text className="pt-4 text-center font-bold">
+          Already have an account?
+          <Link href="/(auth)/login">
+            <Text className="text-[#2563EB] underline"> Sign in</Text>
+          </Link>
+        </Text>
 
-      {/* Sign In */}
-      <Text className="pt-4 text-center font-bold">
-        Already have an account?
-        <Link href="/(auth)/login">
-          <Text className="text-[#2563EB] underline"> Sign in</Text>
-        </Link>
-      </Text>
-
-      {/* Social Sign In */}
-      <View className="flex-row justify-center gap-5 pt-12">
-        <GoogleSignInButton onPress={onGoogleSignIn} />
-        <AppleSignInButton onPress={onAppleSignIn} />
-      </View>
+        {/* Social Sign In */}
+        <View className="justify-center gap-5 pt-12 mb-8">
+          <GoogleSignInButton onPress={onGoogleSignIn} />
+          <AppleSignInButton onPress={onAppleSignIn} />
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }

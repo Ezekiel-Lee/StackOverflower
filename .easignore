@@ -1,0 +1,31 @@
+# Backend
+backend/
+
+# Mobile generated/native files
+mobile/android/
+mobile/ios/
+mobile/node_modules/
+mobile/.expo/
+mobile/dist/
+mobile/build/
+mobile/eas-archive/
+
+# Other repository files
+user document/
+.github/
+.git/
+
+# Local environment files
+**/.env
+**/.env.local
+**/.env.*.local
+
+# IDE
+**/.vscode/
+**/.idea/
+
+# Logs
+**/*.log
+
+# Test/coverage
+**/coverage/
