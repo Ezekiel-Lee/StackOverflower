@@ -4,6 +4,7 @@ import { LineChart } from "react-native-gifted-charts";
 
 import type { SensorData } from "@/types/sensor";
 import {
+  formatSensorDisplay,
   formatSensorName,
   getSensorAverage,
   getSensorReadings,
@@ -53,11 +54,13 @@ export default function SensorGraph({
 
         <View className="items-end">
           <Text className="font-coiny text-2xl text-dark-green">
-            {average ?? "--"}
+            {average == null
+              ? "No readings available."
+              : formatSensorDisplay(sensorType, average, unit)}
           </Text>
 
-          {unit && (
-            <Text className="text-xs text-gray-500">{unit} average</Text>
+          {average != null && (
+            <Text className="text-xs text-gray-500">average</Text>
           )}
         </View>
       </View>

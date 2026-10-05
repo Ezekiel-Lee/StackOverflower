@@ -75,7 +75,8 @@ Register a new wearable device for the current user.
   "name": "My Watch",
   "model": "ESP32-Proto",
   "ble_identifier": "AA:BB:CC:DD:EE:FF",
-  "firmware_version": "1.0.0"
+  "firmware_version": "1.0.0",
+  "supported_sensors": ["heartRate", "stepCount", "bloodOxygen", "activeEnergy", "sleep"]
 }
 ```
 | Field | Type | Required |
@@ -84,6 +85,7 @@ Register a new wearable device for the current user.
 | `model` | string | no |
 | `ble_identifier` | string | no |
 | `firmware_version` | string | no |
+| `supported_sensors` | string[] | no | Canonical names this device supports. `null`/omitted = undeclared (legacy: accept any type). `[]` = none. A list is authoritative. Known names: `heartRate`, `stepCount`, `bloodOxygen`, `stress`, `activeEnergy`, `sleep`. Alias `steps` is stored as `stepCount`. `stress` may be declared but has no defined scale yet. |
 
 **Response `201`** — `DeviceOut`
 ```json
@@ -94,7 +96,12 @@ Register a new wearable device for the current user.
   "model": "ESP32-Proto",
   "ble_identifier": "AA:BB:CC:DD:EE:FF",
   "firmware_version": "1.0.0",
-  "created_at": "2026-08-06T01:00:00"
+  "created_at": "2026-08-06T01:00:00",
+  "vendor": null,
+  "vendor_device_id": null,
+  "battery_level": null,
+  "last_synced_at": null,
+  "supported_sensors": ["heartRate", "stepCount", "bloodOxygen", "activeEnergy", "sleep"]
 }
 ```
 
@@ -108,7 +115,7 @@ Rename a device or update its model. Only the owner can do this — any other us
 
 **Body** — `DeviceUpdate` (all fields optional, send only what changes)
 ```json
-{ "name": "New Name" }
+{ "name": "New Name", "supported_sensors": ["heartRate", "stepCount", "activeEnergy"] }
 ```
 
 **Response `200`** — updated `DeviceOut`
@@ -141,14 +148,15 @@ Ingests one sensor reading.
 ```
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| `sensor_type` | string | yes | e.g. `"heartRate"`, `"steps"`, `"accelerometer"` — not yet enum-constrained |
-| `value` | float | yes | |
-| `unit` | string | no | e.g. `"bpm"`, `"steps"`, `"°C"` |
+| `sensor_type` | string | yes | Canonical: `"heartRate"`, `"stepCount"`, `"bloodOxygen"`, `"stress"`, `"activeEnergy"`, `"sleep"`. Alias `"steps"` is stored as `"stepCount"`. |
+| `value` | float | yes | Sleep is duration in **minutes**. |
+| `unit` | string | no | e.g. `"bpm"`, `"steps"`, `"percent"`, `"kcal"`, `"minutes"` |
 | `recorded_at` | ISO datetime | no | defaults to server time if omitted |
 | `quality_status` | string | no | defaults to `"ok"`; e.g. `"invalid"`, `"out_of_range"` |
 
 **Response `201`** — `SensorReadingOut`
 **Response `404`** — device doesn't exist / not owned by caller
+**Response `422`** — `supported_sensors` is a list and `sensor_type` is not in it. Undeclared (`null`) capabilities still accept any type.
 
 ### `GET /devices/{device_id}/data`
 Historical readings — used for charts.
@@ -252,7 +260,11 @@ All three endpoints require the caller's role to be `"doctor"` (returns `403` ot
 
 ## 10. Normalizer / Vendor Sync
 
-Replaces direct BLE parsing — see `Normalizer_Explained.docx` for the full design writeup. `Device` now has `vendor`, `vendor_device_id`, `battery_level`, `last_synced_at`.
+Replaces direct BLE parsing — see `Normalizer_Explained.docx` for the full design writeup. `Device` now has `vendor`, `vendor_device_id`, `battery_level`, `last_synced_at`, `supported_sensors`.
+
+BLE hardware identity stays on `devices.ble_identifier` (not copied onto readings). Resolve BLE → `devices.id` as: authenticated owner + `ble_identifier`. Canonical readings only store `device_id`.
+
+The mock vendor adapter emits `heartRate`, `stepCount`, `bloodOxygen`, `activeEnergy`, and `sleep` (minutes). It never emits `stress`. `POST /devices/{id}/sync` skips types that are not in a declared `supported_sensors` list; undeclared (`null`) capabilities ingest whatever the adapter returns.
 
 - `POST /devices/{device_id}/link-vendor` — body: `{ vendor, vendor_device_id?, access_token, refresh_token?, expires_at? }`. `vendor` must be a key registered in `app/normalizer/registry.py` (currently only `"mock"` — no real wearable vendor is confirmed yet) or this returns `422`. Call this right after the app's "vendor connected successfully" step. Returns the updated `DeviceOut`.
 - `POST /devices/{device_id}/sync` — pulls new readings through the device's vendor adapter and feeds them into the normal ingestion + alert-rule pipeline (same behavior as a manual `POST /devices/{id}/data`, including notifications on a threshold breach). Returns `{ readings_synced, battery_level, last_synced_at }`. Returns `409` if the device has no vendor linked yet, `401` if the stored vendor token is invalid/expired.

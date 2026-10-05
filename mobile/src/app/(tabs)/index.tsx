@@ -1,4 +1,4 @@
-import { ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useState } from "react";
 
@@ -6,10 +6,9 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { useAuthStore } from "@/store/authStore";
 import { useDashboardStore } from "@/store/dashboardStore";
-import { useDeviceStore } from "@/store/deviceStore";
+import { useSelectedDevice } from "@/hooks/useSelectedDevice";
 import { useSensorData } from "@/hooks/useSensorData";
-
-import { getAvailableSensors } from "@/lib/sensorUtils";
+import { getPickerSensors } from "@/lib/sensorUtils";
 
 import DashboardHeader from "@/components/dashboard/dashboardHeader";
 import DashboardSection from "@/components/dashboard/dashboardSection";
@@ -37,15 +36,34 @@ export default function Dashboard() {
     (state) => state.removeSummarySensor,
   );
 
-  const connectedDeviceId = useDeviceStore((state) => state.connectedDeviceId);
+  const { selectedDevice, connectedDeviceId, loading: deviceLoading } =
+    useSelectedDevice();
 
-  const { sensorData, loading } = useSensorData(connectedDeviceId);
+  const { sensorData } = useSensorData(connectedDeviceId);
 
   const [modalType, setModalType] = useState<"graph" | "highlight" | null>(
     null,
   );
 
-  const availableSensors = getAvailableSensors(sensorData);
+  const supportedSensors = selectedDevice?.supported_sensors ?? null;
+  const pickerSensors = getPickerSensors(sensorData, supportedSensors);
+
+  const visibleGraph =
+    !selectedDevice ||
+    graphSensor == null ||
+    graphSensor === "stress" ||
+    (supportedSensors != null && !supportedSensors.includes(graphSensor))
+      ? null
+      : graphSensor;
+
+  const visibleHighlights = !selectedDevice
+    ? []
+    : (supportedSensors == null
+        ? summarySensors
+        : summarySensors.filter((sensorType) =>
+            supportedSensors.includes(sensorType),
+          )
+      ).filter((sensorType) => sensorType !== "stress");
 
   function handleGraphSelect(sensorType: string) {
     setGraphSensor(sensorType);
@@ -65,13 +83,13 @@ export default function Dashboard() {
           paddingBottom: 100,
         }}
       >
-        {/* Header */}
-
         <DashboardHeader displayName={user?.displayName} />
 
-        {/* No connected device */}
-
-        {!connectedDeviceId ? (
+        {deviceLoading ? (
+          <View className="mx-4 mt-8">
+            <ActivityIndicator />
+          </View>
+        ) : !connectedDeviceId || !selectedDevice ? (
           <View className="mx-4 mt-4 rounded-2xl border-4 border-[#a0a0a0] bg-[#e9e9e9] p-6">
             <View className="items-center">
               <Ionicons name="watch-outline" size={42} color="#000" />
@@ -87,11 +105,9 @@ export default function Dashboard() {
           </View>
         ) : (
           <>
-            {/* Graph */}
-
-            {graphSensor ? (
+            {visibleGraph ? (
               <SensorGraph
-                sensorType={graphSensor}
+                sensorType={visibleGraph}
                 sensorData={sensorData}
                 onChange={() => setModalType("graph")}
                 onRemove={removeGraph}
@@ -102,15 +118,13 @@ export default function Dashboard() {
               </View>
             )}
 
-            {/* Highlights */}
-
             <DashboardSection
               title="Highlights"
               icon={<Highlights width={24} height={24} />}
             />
 
             <HighlightsGrid
-              sensorTypes={summarySensors}
+              sensorTypes={visibleHighlights}
               sensorData={sensorData}
               onAdd={() => setModalType("highlight")}
               onRemove={removeSummarySensor}
@@ -119,18 +133,14 @@ export default function Dashboard() {
         )}
       </ScrollView>
 
-      {/* Notifications */}
-
       <View className="absolute bottom-20 right-4">
         <Ionicons name="notifications-outline" size={32} color="#000" />
       </View>
 
-      {/* Sensor selector */}
-
       <AddSensorModal
         visible={modalType !== null}
         mode={modalType}
-        sensors={availableSensors}
+        sensors={pickerSensors}
         sensorData={sensorData}
         selectedGraph={graphSensor}
         selectedHighlights={summarySensors}

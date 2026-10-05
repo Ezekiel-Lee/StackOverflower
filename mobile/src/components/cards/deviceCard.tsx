@@ -4,7 +4,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
 type Props = {
   name: string;
-  battery: number;
+  battery: number | null;
   selected: boolean;
   removing: boolean;
   onSelect: () => void;
@@ -20,7 +20,11 @@ export default function DeviceCard({
   onRemove,
 }: Props) {
   return (
-    <View className="flex-row items-center rounded-3xl bg-[#D9D9D9] px-5 py-4">
+    <View
+      className={`flex-row items-center rounded-3xl px-5 py-4 ${
+        selected ? "border-2 border-dark-green bg-green-100" : "bg-[#D9D9D9]"
+      }`}
+    >
       <Image
         source={require("@/assets/images/green-rectangle.png")}
         className="h-4 w-4"
@@ -29,7 +33,9 @@ export default function DeviceCard({
       <View className="ml-3 flex-1">
         <Text className="font-[Coiny] text-base text-[#5f5f5f]">{name}</Text>
 
-        <Text className="font-[Coiny] text-sm text-[#5f5f5f]">{battery}%</Text>
+        <Text className="font-[Coiny] text-sm text-[#5f5f5f]">
+          {battery == null ? "Unknown" : `${battery}%`}
+        </Text>
       </View>
 
       <View className="flex-row items-center gap-2">

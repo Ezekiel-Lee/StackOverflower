@@ -45,6 +45,46 @@ def test_device_endpoints_require_auth(client):
     assert resp.status_code == 401
 
 
+def test_register_device_with_supported_sensors(client, auth_headers):
+    resp = client.post(
+        "/devices",
+        json={
+            "name": "DSS Test Band",
+            "supported_sensors": ["heartRate", "steps", "bloodOxygen", "activeEnergy", "sleep"],
+        },
+        headers=auth_headers,
+    )
+    assert resp.status_code == 201
+    assert resp.json()["supported_sensors"] == [
+        "heartRate",
+        "stepCount",
+        "bloodOxygen",
+        "activeEnergy",
+        "sleep",
+    ]
+
+
+def test_patch_supported_sensors_round_trip(client, auth_headers):
+    created = client.post("/devices", json={"name": "Watch"}, headers=auth_headers).json()
+    assert created["supported_sensors"] is None
+
+    resp = client.patch(
+        f"/devices/{created['id']}",
+        json={"supported_sensors": ["heartRate", "stepCount"]},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["supported_sensors"] == ["heartRate", "stepCount"]
+
+    empty = client.patch(
+        f"/devices/{created['id']}",
+        json={"supported_sensors": []},
+        headers=auth_headers,
+    )
+    assert empty.status_code == 200
+    assert empty.json()["supported_sensors"] == []
+
+
 def test_cannot_access_another_users_device(client, auth_headers):
     from tests.conftest import FAKE_TOKEN_2
 
