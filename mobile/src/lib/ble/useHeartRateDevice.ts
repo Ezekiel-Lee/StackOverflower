@@ -12,28 +12,33 @@ export function useHeartRateDevice() {
   const [status, setStatus] = useState<BleConnectStatus>("idle");
 
   const cleanupRef = useRef<(() => void) | null>(null);
-
   const sessionIdRef = useRef<string | null>(null);
-
   const backendDeviceIdRef = useRef<string | null>(null);
+  const connectingRef = useRef(false);
+  const intentionalDisconnectRef = useRef(false);
 
   const connectToDevice = useCallback(
     async (device: Device, backendDeviceId: string) => {
-      const granted = await requestBlePermissions();
-
-      if (!granted) {
-        setStatus("failed");
-
-        throw new Error("Bluetooth permission was not granted");
+      if (connectingRef.current || cleanupRef.current) {
+        return;
       }
 
+      connectingRef.current = true;
+      intentionalDisconnectRef.current = false;
       setStatus("connecting");
 
-      backendDeviceIdRef.current = backendDeviceId;
+      let sessionId: string | null = null;
 
       try {
-        const sessionId = await startDeviceSession(backendDeviceId);
+        const granted = await requestBlePermissions();
 
+        if (!granted) {
+          throw new Error("Bluetooth permission was not granted");
+        }
+
+        backendDeviceIdRef.current = backendDeviceId;
+
+        sessionId = await startDeviceSession(backendDeviceId);
         sessionIdRef.current = sessionId;
 
         const cleanup = await connectAndMonitorHeartRate(
@@ -42,14 +47,21 @@ export function useHeartRateDevice() {
             try {
               await sendHeartRateReading(backendDeviceId, bpm, timestamp);
             } catch (error) {
-              console.warn("Failed to send heart rate reading:", error);
+              console.warn("Failed to send heart-rate reading:", error);
             }
           },
           async (reason) => {
-            const currentSessionId = sessionIdRef.current;
+            // Ignore duplicate or intentional disconnect callbacks.
+            if (intentionalDisconnectRef.current) {
+              return;
+            }
 
+            intentionalDisconnectRef.current = true;
+
+            const currentSessionId = sessionIdRef.current;
             sessionIdRef.current = null;
             cleanupRef.current = null;
+            backendDeviceIdRef.current = null;
 
             if (currentSessionId) {
               try {
@@ -72,31 +84,53 @@ export function useHeartRateDevice() {
       } catch (error) {
         console.warn("BLE connection failed:", error);
 
+        if (sessionId) {
+          try {
+            await endDeviceSession(
+              backendDeviceId,
+              sessionId,
+              "connection_failed",
+            );
+          } catch (sessionError) {
+            console.warn(
+              "Failed to close session after connection failure:",
+              sessionError,
+            );
+          }
+        }
+
         sessionIdRef.current = null;
         cleanupRef.current = null;
         backendDeviceIdRef.current = null;
 
         setStatus("failed");
-
         throw error;
+      } finally {
+        connectingRef.current = false;
       }
     },
     [],
   );
 
   const disconnect = useCallback(async () => {
+    intentionalDisconnectRef.current = true;
+
     getBleManager().stopDeviceScan();
 
-    cleanupRef.current?.();
+    const cleanup = cleanupRef.current;
     cleanupRef.current = null;
 
     const currentSessionId = sessionIdRef.current;
-
-    sessionIdRef.current = null;
-
     const backendDeviceId = backendDeviceIdRef.current;
 
+    sessionIdRef.current = null;
     backendDeviceIdRef.current = null;
+
+    try {
+      cleanup?.();
+    } catch (error) {
+      console.warn("Failed to clean up BLE connection:", error);
+    }
 
     if (backendDeviceId && currentSessionId) {
       try {

@@ -1,45 +1,33 @@
-import DeviceCard from "@/components/cards/deviceCard";
-
-import { deleteDevice, getDevices, registerDevice } from "@/lib/api";
-
-import {
-  ensureHealthConnectPermissions,
-  isHealthConnectAvailable,
-} from "@/lib/health/permissions";
-
-import { getHealthConnectSource } from "@/lib/health/deviceSource";
-
-import { syncHealthDataToBackend } from "@/lib/health/syncHealthData";
-
-import { requestBlePermissions } from "@/lib/ble/permissions";
-
-import {
-  getBleManager,
-  scanForHeartRateDevices,
-} from "@/lib/ble/heartRateScanner";
-
-import { useHeartRateDevice } from "@/lib/ble/useHeartRateDevice";
-
-import { useDeviceStore } from "@/store/deviceStore";
-
-import type { Device as BackendDevice } from "@/types/device";
-
 import { useCallback, useEffect, useState } from "react";
-
 import {
   ActivityIndicator,
   Alert,
+  FlatList,
   Modal,
   Pressable,
   Text,
   View,
 } from "react-native";
-
-import { Device } from "react-native-ble-plx";
-
+import type { Device } from "react-native-ble-plx";
 import { SafeAreaView } from "react-native-safe-area-context";
-
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+
+import DeviceCard from "@/components/cards/deviceCard";
+import { deleteDevice, getDevices, registerDevice } from "@/lib/api";
+import {
+  ensureHealthConnectPermissions,
+  isHealthConnectAvailable,
+} from "@/lib/health/permissions";
+import { getHealthConnectSource } from "@/lib/health/deviceSource";
+import { syncHealthDataToBackend } from "@/lib/health/syncHealthData";
+import { requestBlePermissions } from "@/lib/ble/permissions";
+import {
+  getBleManager,
+  scanForHeartRateDevices,
+} from "@/lib/ble/heartRateScanner";
+import { useHeartRateDevice } from "@/lib/ble/useHeartRateDevice";
+import { useDeviceStore } from "@/store/deviceStore";
+import type { Device as BackendDevice } from "@/types/device";
 
 type ConnectionStatus =
   | "idle"
@@ -53,32 +41,24 @@ type ConnectionStatus =
 
 export default function Connect() {
   const [devices, setDevices] = useState<BackendDevice[]>([]);
-
   const [bleDevices, setBleDevices] = useState<Device[]>([]);
-
   const [loading, setLoading] = useState(true);
-
   const [connectionStatus, setConnectionStatus] =
     useState<ConnectionStatus>("idle");
-
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showConnectionMethodModal, setShowConnectionMethodModal] =
     useState(false);
 
   const connectedDeviceId = useDeviceStore((state) => state.connectedDeviceId);
-
   const connectedDeviceType = useDeviceStore(
     (state) => state.connectedDeviceType,
   );
-
   const setConnectedDeviceId = useDeviceStore(
     (state) => state.setConnectedDeviceId,
   );
-
   const setConnectedDeviceType = useDeviceStore(
     (state) => state.setConnectedDeviceType,
   );
-
   const clearConnectedDevice = useDeviceStore(
     (state) => state.clearConnectedDevice,
   );
@@ -89,10 +69,10 @@ export default function Connect() {
   const fetchDevices = useCallback(async () => {
     try {
       const data = await getDevices();
-
       setDevices(data);
     } catch (error) {
       console.error("Failed to fetch devices:", error);
+      setErrorMessage("Couldn't load your devices. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -106,15 +86,12 @@ export default function Connect() {
     };
   }, [fetchDevices]);
 
-  function cancelBleSearch() {
+  const cancelBleSearch = useCallback(() => {
     getBleManager().stopDeviceScan();
-
     setBleDevices([]);
-
     setConnectionStatus("idle");
-
     setErrorMessage(null);
-  }
+  }, []);
 
   function handleAddDevice() {
     setErrorMessage(null);
@@ -130,6 +107,7 @@ export default function Connect() {
     try {
       if (method === "health-connect") {
         setConnectionStatus("checking-health-connect");
+
         const available = await isHealthConnectAvailable();
 
         if (!available) {
@@ -167,25 +145,20 @@ export default function Connect() {
     setConnectionStatus("syncing");
 
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
-
     const source = await getHealthConnectSource(since);
-
     const deviceName = source?.name ?? "Health Connect";
 
     const device = await registerDevice({
       name: deviceName,
-
       vendor: "health-connect",
     });
 
     await syncHealthDataToBackend(device.id, since);
 
     setConnectedDeviceId(device.id);
-
     setConnectedDeviceType("health-connect");
 
     await fetchDevices();
-
     setConnectionStatus("idle");
 
     console.log("Connected through Health Connect:", deviceName);
@@ -200,34 +173,37 @@ export default function Connect() {
       setErrorMessage(
         "Bluetooth permission is required to connect a wearable.",
       );
-
       setConnectionStatus("error");
-
       return;
     }
 
+    getBleManager().stopDeviceScan();
     setBleDevices([]);
-
     setConnectionStatus("scanning");
 
-    scanForHeartRateDevices((device) => {
-      setBleDevices((current) => {
-        const exists = current.some((item) => item.id === device.id);
+    scanForHeartRateDevices(
+      (device) => {
+        setBleDevices((current) => {
+          const exists = current.some((item) => item.id === device.id);
 
-        if (exists) {
-          return current;
-        }
+          if (exists) {
+            return current;
+          }
 
-        return [...current, device];
-      });
-    });
+          return [...current, device];
+        });
+      },
+      (message) => {
+        console.warn("Bluetooth scan failed:", message);
+        setErrorMessage(`Bluetooth scan failed: ${message}`);
+        setConnectionStatus("error");
+      },
+    );
   }
 
   async function handleSelectBleDevice(device: Device) {
     getBleManager().stopDeviceScan();
-
     setConnectionStatus("connecting");
-
     setErrorMessage(null);
 
     try {
@@ -236,28 +212,24 @@ export default function Connect() {
 
       const registeredDevice = await registerDevice({
         name: deviceName,
-
         vendor: "BLE",
       });
 
       await connectToDevice(device, registeredDevice.id);
 
       setConnectedDeviceId(registeredDevice.id);
-
       setConnectedDeviceType("ble");
-
       setBleDevices([]);
 
       await fetchDevices();
-
       setConnectionStatus("idle");
 
       console.log("Connected through BLE:", deviceName);
     } catch (error) {
       console.error("Failed to connect BLE device:", error);
-
-      setErrorMessage("Couldn't connect to this Bluetooth device.");
-
+      setErrorMessage(
+        "Couldn't connect to this Bluetooth device. Try another device or check that it supports the Heart Rate Service.",
+      );
       setConnectionStatus("error");
     }
   }
@@ -269,22 +241,18 @@ export default function Connect() {
   function handleRemoveDevice(device: BackendDevice) {
     Alert.alert(
       "Remove Device",
-
       `Are you sure you want to remove ${device.name}?`,
-
       [
         {
           text: "Cancel",
-
           style: "cancel",
         },
-
         {
           text: "Remove",
-
           style: "destructive",
-
-          onPress: () => removeDevice(device),
+          onPress: () => {
+            void removeDevice(device);
+          },
         },
       ],
     );
@@ -292,7 +260,6 @@ export default function Connect() {
 
   async function removeDevice(device: BackendDevice) {
     setConnectionStatus("removing");
-
     setErrorMessage(null);
 
     try {
@@ -305,15 +272,12 @@ export default function Connect() {
       }
 
       await deleteDevice(device.id);
-
       await fetchDevices();
 
       setConnectionStatus("idle");
     } catch (error) {
       console.error("Failed to remove device:", error);
-
       setErrorMessage("Couldn't remove the device. Please try again.");
-
       setConnectionStatus("error");
     }
   }
@@ -328,47 +292,75 @@ export default function Connect() {
 
   const isRemoving = connectionStatus === "removing";
 
+  function renderStatusMessage() {
+    if (connectionStatus === "checking-health-connect") {
+      return "Checking Health Connect...";
+    }
+
+    if (connectionStatus === "requesting-permission") {
+      return "Checking permissions...";
+    }
+
+    if (connectionStatus === "syncing") {
+      return "Syncing Health Connect data...";
+    }
+
+    if (connectionStatus === "connecting") {
+      return "Connecting to wearable...";
+    }
+
+    if (connectionStatus === "removing") {
+      return "Removing device...";
+    }
+
+    return null;
+  }
+
   return (
-    <SafeAreaView className="flex-1 px-10 pt-4">
+    <SafeAreaView className="flex-1 px-6 pt-4">
       <Text className="text-3xl font-[Coiny] text-black/65">Connect</Text>
 
       {loading ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator />
+          <ActivityIndicator size="large" />
         </View>
       ) : bleDevices.length > 0 ? (
-        <View className="flex-1 pt-8">
-          <View className="mb-6 flex-row items-center justify-between">
+        // Bluetooth discovery screen.
+        // FlatList takes the remaining height and scrolls independently.
+        <View className="flex-1 pt-6">
+          <View className="mb-4 flex-row items-center justify-between">
             <Text className="font-[Coiny] uppercase text-[#727272]">
-              Bluetooth Devices
+              Bluetooth Devices ({bleDevices.length})
             </Text>
 
             <Pressable
               onPress={cancelBleSearch}
-
               className="rounded-xl bg-black px-4 py-2"
             >
               <Text className="font-[Coiny] text-white">Cancel Search</Text>
             </Pressable>
           </View>
 
-          <Text className="mb-6 font-[Coiny] text-[#727272]">
+          <Text className="mb-4 font-[Coiny] text-[#727272]">
             Select the wearable you want to connect.
           </Text>
 
-          <View className="gap-4">
-            {bleDevices.map((device) => {
+          <FlatList
+            className="flex-1"
+            data={bleDevices}
+            keyExtractor={(device) => device.id}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator
+            contentContainerStyle={{ paddingBottom: 32 }}
+            ItemSeparatorComponent={() => <View className="h-4" />}
+            renderItem={({ item: device }) => {
               const deviceName =
                 device.name || device.localName || "Unknown Wearable";
 
               return (
                 <Pressable
-                  key={device.id}
-
                   onPress={() => handleSelectBleDevice(device)}
-
                   disabled={connectionStatus === "connecting"}
-
                   className="rounded-2xl border-4 border-[#a0a0a0] bg-[#e9e9e9] p-5"
                 >
                   <View className="flex-row items-center">
@@ -381,7 +373,10 @@ export default function Connect() {
                         {deviceName}
                       </Text>
 
-                      <Text className="mt-1 font-[Coiny] text-sm text-[#727272]">
+                      <Text
+                        className="mt-1 font-[Coiny] text-sm text-[#727272]"
+                        numberOfLines={2}
+                      >
                         {device.id}
                       </Text>
                     </View>
@@ -391,25 +386,28 @@ export default function Connect() {
                     ) : (
                       <MaterialIcons
                         name="chevron-right"
-
                         size={30}
-
                         color="#727272"
                       />
                     )}
                   </View>
                 </Pressable>
               );
-            })}
-          </View>
+            }}
+          />
+
+          {errorMessage && (
+            <Text className="mt-3 font-[Coiny] text-red-500">
+              {errorMessage}
+            </Text>
+          )}
         </View>
       ) : devices.length === 0 ? (
+        // Empty state.
         <View className="flex-1 items-center justify-center">
           <Pressable
             onPress={handleAddDevice}
-
             disabled={isBusy}
-
             className="mb-10 rounded-2xl border-4 border-[#a0a0a0] bg-[#e9e9e9] px-5 py-4"
           >
             {isBusy ? (
@@ -437,7 +435,6 @@ export default function Connect() {
 
               <Pressable
                 onPress={cancelBleSearch}
-
                 className="mt-4 rounded-xl bg-black px-5 py-3"
               >
                 <Text className="font-[Coiny] text-white">Cancel Search</Text>
@@ -445,32 +442,12 @@ export default function Connect() {
             </View>
           )}
 
-          {connectionStatus === "checking-health-connect" && (
+          {renderStatusMessage() && (
             <View className="mt-6 items-center">
               <ActivityIndicator />
 
-              <Text className="mt-2 font-[Coiny] text-[#727272]">
-                Checking Health Connect...
-              </Text>
-            </View>
-          )}
-
-          {connectionStatus === "requesting-permission" && (
-            <View className="mt-6 items-center">
-              <ActivityIndicator />
-
-              <Text className="mt-2 font-[Coiny] text-[#727272]">
-                Checking permissions...
-              </Text>
-            </View>
-          )}
-
-          {connectionStatus === "syncing" && (
-            <View className="mt-6 items-center">
-              <ActivityIndicator />
-
-              <Text className="mt-2 font-[Coiny] text-[#727272]">
-                Syncing Health Connect data...
+              <Text className="mt-2 text-center font-[Coiny] text-[#727272]">
+                {renderStatusMessage()}
               </Text>
             </View>
           )}
@@ -482,17 +459,17 @@ export default function Connect() {
           )}
         </View>
       ) : (
+        // Saved devices screen.
+        // FlatList allows the saved devices to scroll as well.
         <View className="flex-1">
-          <View className="flex-row items-center justify-between pt-8">
+          <View className="flex-row items-center justify-between pt-6">
             <Text className="font-[Coiny] uppercase text-[#727272]">
               My Devices
             </Text>
 
             <Pressable
               onPress={handleAddDevice}
-
               disabled={isBusy}
-
               className="flex-row items-center rounded-xl bg-black px-4 py-2"
             >
               {isBusy ? (
@@ -500,7 +477,6 @@ export default function Connect() {
               ) : (
                 <>
                   <MaterialIcons name="add" size={20} color="white" />
-
                   <Text className="ml-1 font-[Coiny] text-white">
                     Add Device
                   </Text>
@@ -513,99 +489,59 @@ export default function Connect() {
             Select a wearable to use it on Dashboard and Summary
           </Text>
 
-          <View className="gap-6 pt-6">
-            {devices.map((device) => (
+          <FlatList
+            className="mt-6 flex-1"
+            data={devices}
+            keyExtractor={(device) => device.id}
+            showsVerticalScrollIndicator
+            contentContainerStyle={{ paddingBottom: 120 }}
+            ItemSeparatorComponent={() => <View className="h-6" />}
+            renderItem={({ item: device }) => (
               <DeviceCard
-                key={device.id}
-
                 name={device.name}
-
                 battery={device.battery_level}
-
                 selected={connectedDeviceId === device.id}
-
                 removing={isRemoving}
-
                 onSelect={() => handleSelectDevice(device.id)}
-
                 onRemove={() => handleRemoveDevice(device)}
               />
-            ))}
-          </View>
+            )}
+            ListFooterComponent={
+              <>
+                {connectionStatus === "scanning" && (
+                  <View className="items-center py-6">
+                    <ActivityIndicator />
+                    <Text className="mt-2 font-[Coiny] text-[#727272]">
+                      Searching for Bluetooth devices...
+                    </Text>
+                    <Pressable
+                      onPress={cancelBleSearch}
+                      className="mt-4 rounded-xl bg-black px-5 py-3"
+                    >
+                      <Text className="font-[Coiny] text-white">
+                        Cancel Search
+                      </Text>
+                    </Pressable>
+                  </View>
+                )}
 
-          {connectionStatus === "scanning" && (
-            <View className="mt-6 items-center">
-              <ActivityIndicator />
+                {renderStatusMessage() && (
+                  <View className="items-center py-6">
+                    <ActivityIndicator />
+                    <Text className="mt-2 text-center font-[Coiny] text-[#727272]">
+                      {renderStatusMessage()}
+                    </Text>
+                  </View>
+                )}
 
-              <Text className="mt-2 font-[Coiny] text-[#727272]">
-                Searching for Bluetooth devices...
-              </Text>
-
-              <Pressable
-                onPress={cancelBleSearch}
-
-                className="mt-4 rounded-xl bg-black px-5 py-3"
-              >
-                <Text className="font-[Coiny] text-white">Cancel Search</Text>
-              </Pressable>
-            </View>
-          )}
-
-          {connectionStatus === "checking-health-connect" && (
-            <View className="mt-6 items-center">
-              <ActivityIndicator />
-
-              <Text className="mt-2 font-[Coiny] text-[#727272]">
-                Checking Health Connect...
-              </Text>
-            </View>
-          )}
-
-          {connectionStatus === "requesting-permission" && (
-            <View className="mt-6 items-center">
-              <ActivityIndicator />
-
-              <Text className="mt-2 font-[Coiny] text-[#727272]">
-                Checking permissions...
-              </Text>
-            </View>
-          )}
-
-          {connectionStatus === "syncing" && (
-            <View className="mt-6 items-center">
-              <ActivityIndicator />
-
-              <Text className="mt-2 font-[Coiny] text-[#727272]">
-                Syncing Health Connect data...
-              </Text>
-            </View>
-          )}
-
-          {connectionStatus === "connecting" && (
-            <View className="mt-6 items-center">
-              <ActivityIndicator />
-
-              <Text className="mt-2 font-[Coiny] text-[#727272]">
-                Connecting to wearable...
-              </Text>
-            </View>
-          )}
-
-          {connectionStatus === "removing" && (
-            <View className="mt-6 items-center">
-              <ActivityIndicator />
-
-              <Text className="mt-2 font-[Coiny] text-[#727272]">
-                Removing device...
-              </Text>
-            </View>
-          )}
-
-          {errorMessage && (
-            <Text className="mt-4 text-center font-[Coiny] text-red-500">
-              {errorMessage}
-            </Text>
-          )}
+                {errorMessage && (
+                  <Text className="py-3 text-center font-[Coiny] text-red-500">
+                    {errorMessage}
+                  </Text>
+                )}
+              </>
+            }
+          />
         </View>
       )}
 
@@ -620,6 +556,7 @@ export default function Connect() {
             <Text className="mb-2 text-2xl font-[Coiny] text-black">
               Add Device
             </Text>
+
             <Text className="mb-6 text-[#727272]">
               Choose how you want to connect your wearable.
             </Text>
@@ -630,6 +567,7 @@ export default function Connect() {
               className="mb-3 flex-row items-center rounded-xl border border-gray-200 p-4"
             >
               <MaterialIcons name="favorite-border" size={28} color="#16a34a" />
+
               <View className="ml-4 flex-1">
                 <Text className="font-[Coiny] text-lg text-black">
                   Health Connect
@@ -638,6 +576,7 @@ export default function Connect() {
                   Sync steps, heart rate and sleep data
                 </Text>
               </View>
+
               <MaterialIcons name="chevron-right" size={24} color="#727272" />
             </Pressable>
 
@@ -647,6 +586,7 @@ export default function Connect() {
               className="flex-row items-center rounded-xl border border-gray-200 p-4"
             >
               <MaterialIcons name="bluetooth" size={28} color="#2563eb" />
+
               <View className="ml-4 flex-1">
                 <Text className="font-[Coiny] text-lg text-black">
                   Bluetooth (BLE)
@@ -655,6 +595,7 @@ export default function Connect() {
                   Scan for a compatible wearable
                 </Text>
               </View>
+
               <MaterialIcons name="chevron-right" size={24} color="#727272" />
             </Pressable>
 

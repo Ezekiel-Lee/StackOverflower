@@ -1,13 +1,6 @@
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from "react-native";
+import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useState } from "react";
-import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import { useAuthStore } from "@/store/authStore";
@@ -111,13 +104,12 @@ export default function Dashboard() {
   }
 
   return (
-    <SafeAreaView className="flex-1">
+    <View className="flex-1 mt-4">
       <ScrollView
-        className="flex-1"
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 24, paddingTop: 24 }}
       >
         <DashboardHeader displayName={user?.displayName} />
-
         {deviceLoading ? (
           <View className="mx-4 mt-8">
             <ActivityIndicator />
@@ -168,16 +160,6 @@ export default function Dashboard() {
         )}
       </ScrollView>
 
-      <View className="absolute bottom-20 right-4">
-        <Pressable
-          onPress={() => router.push("/(screens)/notifications")}
-          accessibilityRole="button"
-          accessibilityLabel="Notifications"
-        >
-          <Ionicons name="notifications-outline" size={32} color="#000" />
-        </Pressable>
-      </View>
-
       <AddSensorModal
         visible={modalType !== null}
         mode={modalType}
@@ -191,6 +173,6 @@ export default function Dashboard() {
         onSelectHighlight={handleHighlightSelect}
         onClose={closeModal}
       />
-    </SafeAreaView>
+    </View>
   );
 }
