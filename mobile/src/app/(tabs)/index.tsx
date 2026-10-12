@@ -1,5 +1,4 @@
 import { ActivityIndicator, ScrollView, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -112,7 +111,7 @@ export default function Dashboard() {
         <DashboardHeader displayName={user?.displayName} />
         {deviceLoading ? (
           <View className="mx-4 mt-8">
-            <ActivityIndicator />
+            <ActivityIndicator testID="dashboard-loading" />
           </View>
         ) : !connectedDeviceId || !selectedDevice ? (
           <View className="mx-4 mt-4 rounded-2xl border-4 border-[#a0a0a0] bg-[#e9e9e9] p-6">
