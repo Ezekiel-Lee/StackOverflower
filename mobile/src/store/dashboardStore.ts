@@ -3,11 +3,12 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
 type DashboardState = {
-  graphSensor: string | null;
+  graphSensors: string[];
   summarySensors: string[];
 
-  setGraphSensor: (sensorType: string) => void;
-  removeGraph: () => void;
+  addGraphSensor: (sensorType: string) => void;
+  changeGraphSensor: (currentSensor: string, nextSensor: string) => void;
+  removeGraphSensor: (sensorType: string) => void;
 
   addSummarySensor: (sensorType: string) => void;
   removeSummarySensor: (sensorType: string) => void;
@@ -16,18 +17,43 @@ type DashboardState = {
 export const useDashboardStore = create<DashboardState>()(
   persist(
     (set) => ({
-      graphSensor: null,
+      graphSensors: [],
       summarySensors: [],
 
-      setGraphSensor: (sensorType) =>
-        set({
-          graphSensor: sensorType,
+      addGraphSensor: (sensorType) =>
+        set((state) => {
+          if (state.graphSensors.includes(sensorType)) {
+            return state;
+          }
+
+          return {
+            graphSensors: [...state.graphSensors, sensorType],
+          };
         }),
 
-      removeGraph: () =>
-        set({
-          graphSensor: null,
+      changeGraphSensor: (currentSensor, nextSensor) =>
+        set((state) => {
+          if (
+            !state.graphSensors.includes(currentSensor) ||
+            (currentSensor !== nextSensor &&
+              state.graphSensors.includes(nextSensor))
+          ) {
+            return state;
+          }
+
+          return {
+            graphSensors: state.graphSensors.map((sensor) =>
+              sensor === currentSensor ? nextSensor : sensor,
+            ),
+          };
         }),
+
+      removeGraphSensor: (sensorType) =>
+        set((state) => ({
+          graphSensors: state.graphSensors.filter(
+            (sensor) => sensor !== sensorType,
+          ),
+        })),
 
       addSummarySensor: (sensorType) =>
         set((state) => {
@@ -50,6 +76,21 @@ export const useDashboardStore = create<DashboardState>()(
     {
       name: "dashboard-config",
       storage: createJSONStorage(() => AsyncStorage),
+      version: 1,
+      migrate: (persistedState: unknown) => {
+        const oldState = persistedState as {
+          graphSensor?: string | null;
+          graphSensors?: string[];
+          summarySensors?: string[];
+        };
+
+        return {
+          graphSensors:
+            oldState.graphSensors ??
+            (oldState.graphSensor ? [oldState.graphSensor] : []),
+          summarySensors: oldState.summarySensors ?? [],
+        };
+      },
     },
   ),
 );

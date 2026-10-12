@@ -91,7 +91,7 @@ export default function Login() {
           name="password"
           render={({ field: { onChange, onBlur, value } }) => (
             <TextInput
-              className="rounded-lg  border border-gray-300 px-4 py-3 focus:border-black"
+              className="rounded-lg  border border-gray-300 px-4 py-3 text-black focus:border-black"
               placeholder="Enter your password"
               placeholderTextColor="#9CA3AF"
               secureTextEntry

@@ -109,3 +109,16 @@ export async function deleteDevice(id: string) {
     throw new Error("Failed to delete device");
   }
 }
+
+export async function getNotifications(): Promise<Notification[]> {
+  const response = await fetch(`${API_URL}/notifications`, {
+    method: "GET",
+    headers: await authHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch notifications");
+  }
+
+  return response.json();
+}

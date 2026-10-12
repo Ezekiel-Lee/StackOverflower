@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
-import { Text, TouchableOpacity, View } from "react-native";
+import { LayoutChangeEvent, Text, TouchableOpacity, View } from "react-native";
 import { LineChart } from "react-native-gifted-charts";
 
 import type { SensorData } from "@/types/sensor";
@@ -13,6 +14,7 @@ import {
 type Props = {
   sensorType: string;
   sensorData: SensorData[];
+  onAdd: () => void;
   onChange: () => void;
   onRemove: () => void;
 };
@@ -20,11 +22,13 @@ type Props = {
 export default function SensorGraph({
   sensorType,
   sensorData,
+  onAdd,
   onChange,
   onRemove,
 }: Props) {
-  const readings = getSensorReadings(sensorData, sensorType);
+  const [chartWidth, setChartWidth] = useState(0);
 
+  const readings = getSensorReadings(sensorData, sensorType);
   const average = getSensorAverage(readings);
 
   const graphData = readings.map((reading) => {
@@ -41,8 +45,12 @@ export default function SensorGraph({
 
   const unit = readings[0]?.unit ?? "";
 
+  function handleChartLayout(event: LayoutChangeEvent) {
+    setChartWidth(event.nativeEvent.layout.width);
+  }
+
   return (
-    <View className="mx-4 mt-4 rounded-2xl bg-green-50 px-3 pb-4 pt-4">
+    <View className="mx-4 mt-4 overflow-hidden rounded-2xl bg-green-50 px-3 pb-4 pt-4">
       <View className="mb-2 flex-row items-center justify-between">
         <View className="flex-1">
           <Text className="font-coiny text-xl text-dark-green">
@@ -66,30 +74,34 @@ export default function SensorGraph({
       </View>
 
       {graphData.length > 0 ? (
-        <LineChart
-          data={graphData}
-          height={170}
-          width={320}
-          thickness={3}
-          color="#166534"
-          curved
-          hideRules
-          yAxisTextStyle={{
-            color: "#6b7280",
-            fontSize: 10,
-          }}
-          xAxisLabelTextStyle={{
-            color: "#6b7280",
-            fontSize: 9,
-          }}
-          xAxisColor="#d1d5db"
-          yAxisColor="#d1d5db"
-          dataPointsColor="#166534"
-          dataPointsRadius={4}
-          noOfSections={4}
-          initialSpacing={10}
-          spacing={38}
-        />
+        <View className="w-full overflow-hidden" onLayout={handleChartLayout}>
+          {chartWidth > 0 && (
+            <LineChart
+              data={graphData}
+              height={170}
+              width={chartWidth}
+              thickness={3}
+              color="#166534"
+              curved
+              hideRules
+              yAxisTextStyle={{
+                color: "#6b7280",
+                fontSize: 10,
+              }}
+              xAxisLabelTextStyle={{
+                color: "#6b7280",
+                fontSize: 9,
+              }}
+              xAxisColor="#d1d5db"
+              yAxisColor="#d1d5db"
+              dataPointsColor="#166534"
+              dataPointsRadius={4}
+              noOfSections={4}
+              initialSpacing={10}
+              spacing={38}
+            />
+          )}
+        </View>
       ) : (
         <View className="h-[170px] items-center justify-center">
           <Ionicons name="analytics-outline" size={32} color="#9ca3af" />
@@ -101,6 +113,14 @@ export default function SensorGraph({
       )}
 
       <View className="mt-3 flex-row justify-end gap-3">
+        <TouchableOpacity
+          onPress={onAdd}
+          className="flex-row items-center rounded-full bg-white px-4 py-2"
+        >
+          <Ionicons name="add" size={16} color="#166534" />
+          <Text className="ml-1 font-coiny text-dark-green">Add</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity
           onPress={onChange}
           className="rounded-full bg-white px-4 py-2"

@@ -80,6 +80,7 @@ export default function Settings() {
             icon="notifications-outline"
             title="Notifications"
             subtitle="Manage notification preferences"
+            onPress={() => router.push("/(screens)/notifications")}
           />
         </View>
       </View>

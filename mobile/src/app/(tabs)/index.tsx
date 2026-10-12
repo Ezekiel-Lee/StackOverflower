@@ -1,7 +1,13 @@
-import { ActivityIndicator, ScrollView, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useState } from "react";
-
+import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import { useAuthStore } from "@/store/authStore";
@@ -19,42 +25,48 @@ import AddSensorModal from "@/components/dashboard/addSensorModal";
 
 import Highlights from "@/assets/icons/highlights.svg";
 
+type ModalType = "graph" | "highlight" | null;
+type GraphAction = "add" | "change";
+
 export default function Dashboard() {
   const user = useAuthStore((state) => state.user);
 
-  const graphSensor = useDashboardStore((state) => state.graphSensor);
-
+  const graphSensors = useDashboardStore((state) => state.graphSensors);
   const summarySensors = useDashboardStore((state) => state.summarySensors);
-
-  const setGraphSensor = useDashboardStore((state) => state.setGraphSensor);
-
-  const removeGraph = useDashboardStore((state) => state.removeGraph);
-
+  const addGraphSensor = useDashboardStore((state) => state.addGraphSensor);
+  const changeGraphSensor = useDashboardStore(
+    (state) => state.changeGraphSensor,
+  );
+  const removeGraphSensor = useDashboardStore(
+    (state) => state.removeGraphSensor,
+  );
   const addSummarySensor = useDashboardStore((state) => state.addSummarySensor);
-
   const removeSummarySensor = useDashboardStore(
     (state) => state.removeSummarySensor,
   );
 
-  const { selectedDevice, connectedDeviceId, loading: deviceLoading } =
-    useSelectedDevice();
+  const {
+    selectedDevice,
+    connectedDeviceId,
+    loading: deviceLoading,
+  } = useSelectedDevice();
 
   const { sensorData } = useSensorData(connectedDeviceId);
 
-  const [modalType, setModalType] = useState<"graph" | "highlight" | null>(
-    null,
-  );
+  const [modalType, setModalType] = useState<ModalType>(null);
+  const [graphAction, setGraphAction] = useState<GraphAction>("add");
+  const [editingGraph, setEditingGraph] = useState<string | null>(null);
 
   const supportedSensors = selectedDevice?.supported_sensors ?? null;
   const pickerSensors = getPickerSensors(sensorData, supportedSensors);
 
-  const visibleGraph =
-    !selectedDevice ||
-    graphSensor == null ||
-    graphSensor === "stress" ||
-    (supportedSensors != null && !supportedSensors.includes(graphSensor))
-      ? null
-      : graphSensor;
+  const visibleGraphs = !selectedDevice
+    ? []
+    : graphSensors.filter(
+        (sensorType) =>
+          sensorType !== "stress" &&
+          (supportedSensors == null || supportedSensors.includes(sensorType)),
+      );
 
   const visibleHighlights = !selectedDevice
     ? []
@@ -65,9 +77,27 @@ export default function Dashboard() {
           )
       ).filter((sensorType) => sensorType !== "stress");
 
+  function openAddGraph() {
+    setGraphAction("add");
+    setEditingGraph(null);
+    setModalType("graph");
+  }
+
+  function openChangeGraph(sensorType: string) {
+    setGraphAction("change");
+    setEditingGraph(sensorType);
+    setModalType("graph");
+  }
+
   function handleGraphSelect(sensorType: string) {
-    setGraphSensor(sensorType);
+    if (graphAction === "change" && editingGraph !== null) {
+      changeGraphSensor(editingGraph, sensorType);
+    } else {
+      addGraphSensor(sensorType);
+    }
+
     setModalType(null);
+    setEditingGraph(null);
   }
 
   function handleHighlightSelect(sensorType: string) {
@@ -75,13 +105,16 @@ export default function Dashboard() {
     setModalType(null);
   }
 
+  function closeModal() {
+    setModalType(null);
+    setEditingGraph(null);
+  }
+
   return (
     <SafeAreaView className="flex-1">
       <ScrollView
+        className="flex-1"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{
-          paddingBottom: 10,
-        }}
       >
         <DashboardHeader displayName={user?.displayName} />
 
@@ -93,28 +126,30 @@ export default function Dashboard() {
           <View className="mx-4 mt-4 rounded-2xl border-4 border-[#a0a0a0] bg-[#e9e9e9] p-6">
             <View className="items-center">
               <Ionicons name="watch-outline" size={42} color="#000" />
-
-              <Text className="mt-3 text-center font-[Coiny] text-xl text-black">
+              <Text className="mt-3 text-center font-coiny text-xl text-black">
                 No device connected
               </Text>
-
-              <Text className="mt-2 text-center font-[Coiny] text-sm text-[#727272]">
+              <Text className="mt-2 text-center font-coiny text-sm text-[#727272]">
                 Connect a wearable to start receiving sensor data.
               </Text>
             </View>
           </View>
         ) : (
           <>
-            {visibleGraph ? (
-              <SensorGraph
-                sensorType={visibleGraph}
-                sensorData={sensorData}
-                onChange={() => setModalType("graph")}
-                onRemove={removeGraph}
-              />
+            {visibleGraphs.length > 0 ? (
+              visibleGraphs.map((sensorType) => (
+                <SensorGraph
+                  key={sensorType}
+                  sensorType={sensorType}
+                  sensorData={sensorData}
+                  onAdd={openAddGraph}
+                  onChange={() => openChangeGraph(sensorType)}
+                  onRemove={() => removeGraphSensor(sensorType)}
+                />
+              ))
             ) : (
               <View className="mx-4 mt-4">
-                <EmptyGraph onAdd={() => setModalType("graph")} />
+                <EmptyGraph onAdd={openAddGraph} />
               </View>
             )}
 
@@ -134,19 +169,27 @@ export default function Dashboard() {
       </ScrollView>
 
       <View className="absolute bottom-20 right-4">
-        <Ionicons name="notifications-outline" size={32} color="#000" />
+        <Pressable
+          onPress={() => router.push("/(screens)/notifications")}
+          accessibilityRole="button"
+          accessibilityLabel="Notifications"
+        >
+          <Ionicons name="notifications-outline" size={32} color="#000" />
+        </Pressable>
       </View>
 
       <AddSensorModal
         visible={modalType !== null}
         mode={modalType}
+        graphAction={graphAction}
         sensors={pickerSensors}
         sensorData={sensorData}
-        selectedGraph={graphSensor}
+        selectedGraphs={graphSensors}
         selectedHighlights={summarySensors}
+        editingGraph={editingGraph}
         onSelectGraph={handleGraphSelect}
         onSelectHighlight={handleHighlightSelect}
-        onClose={() => setModalType(null)}
+        onClose={closeModal}
       />
     </SafeAreaView>
   );

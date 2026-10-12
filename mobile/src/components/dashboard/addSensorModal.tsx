@@ -2,16 +2,17 @@ import { Ionicons } from "@expo/vector-icons";
 import { Modal, ScrollView, Text, TouchableOpacity, View } from "react-native";
 
 import SensorOption from "./sensorOption";
-
 import type { SensorData } from "@/types/sensor";
 
 type Props = {
   visible: boolean;
   mode: "graph" | "highlight" | null;
+  graphAction?: "add" | "change";
   sensors: string[];
   sensorData: SensorData[];
-  selectedGraph: string | null;
+  selectedGraphs: string[];
   selectedHighlights: string[];
+  editingGraph: string | null;
   onSelectGraph: (sensorType: string) => void;
   onSelectHighlight: (sensorType: string) => void;
   onClose: () => void;
@@ -20,14 +21,24 @@ type Props = {
 export default function AddSensorModal({
   visible,
   mode,
+  graphAction = "add",
   sensors,
   sensorData,
-  selectedGraph,
+  selectedGraphs,
   selectedHighlights,
+  editingGraph,
   onSelectGraph,
   onSelectHighlight,
   onClose,
 }: Props) {
+  const availableSensors =
+    mode === "graph"
+      ? sensors.filter(
+          (sensorType) =>
+            !selectedGraphs.includes(sensorType) || sensorType === editingGraph,
+        )
+      : sensors;
+
   return (
     <Modal
       visible={visible}
@@ -37,14 +48,15 @@ export default function AddSensorModal({
     >
       <View className="flex-1 justify-end bg-black/40">
         <View className="max-h-[75%] rounded-t-3xl bg-white px-5 pb-10 pt-5">
-          {/* Header */}
-
           <View className="flex-row items-center justify-between">
-            <View>
+            <View className="flex-1">
               <Text className="font-coiny text-2xl text-dark-green">
-                {mode === "graph" ? "Add Graph" : "Add Highlight"}
+                {mode === "graph"
+                  ? graphAction === "change"
+                    ? "Change Graph"
+                    : "Add Graph"
+                  : "Add Highlight"}
               </Text>
-
               <Text className="mt-1 text-sm text-gray-500">
                 Choose an available sensor
               </Text>
@@ -52,36 +64,38 @@ export default function AddSensorModal({
 
             <TouchableOpacity
               onPress={onClose}
+              accessibilityRole="button"
+              accessibilityLabel="Close sensor picker"
               className="h-10 w-10 items-center justify-center rounded-full bg-gray-100"
             >
               <Ionicons name="close" size={22} color="#374151" />
             </TouchableOpacity>
           </View>
 
-          {/* Sensors */}
-
           <ScrollView className="mt-5" showsVerticalScrollIndicator={false}>
-            {sensors.length === 0 ? (
+            {availableSensors.length === 0 ? (
               <View className="items-center py-10">
                 <Ionicons
                   name="hardware-chip-outline"
                   size={40}
                   color="#9ca3af"
                 />
-
-                <Text className="mt-3 font-coiny text-lg text-gray-600">
-                  No sensor data available
+                <Text className="mt-3 text-center font-coiny text-lg text-gray-600">
+                  {mode === "graph"
+                    ? "No additional sensors available"
+                    : "No sensor data available"}
                 </Text>
-
                 <Text className="mt-1 text-center text-sm text-gray-400">
-                  Connect a device and start receiving sensor data.
+                  {mode === "graph"
+                    ? "All available sensors are already displayed. Remove a graph to make room for another."
+                    : "Connect a device and start receiving sensor data."}
                 </Text>
               </View>
             ) : (
-              sensors.map((sensorType) => {
+              availableSensors.map((sensorType) => {
                 const selected =
                   mode === "graph"
-                    ? selectedGraph === sensorType
+                    ? selectedGraphs.includes(sensorType)
                     : selectedHighlights.includes(sensorType);
 
                 const readingCount = sensorData.filter(
