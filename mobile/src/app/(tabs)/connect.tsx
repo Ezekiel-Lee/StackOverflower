@@ -26,7 +26,14 @@ import type { Device as BackendDevice } from "@/types/device";
 
 import { useCallback, useEffect, useState } from "react";
 
-import { ActivityIndicator, Alert, Pressable, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  Modal,
+  Pressable,
+  Text,
+  View,
+} from "react-native";
 
 import { Device } from "react-native-ble-plx";
 
@@ -46,13 +53,17 @@ type ConnectionStatus =
 
 export default function Connect() {
   const [devices, setDevices] = useState<BackendDevice[]>([]);
+
   const [bleDevices, setBleDevices] = useState<Device[]>([]);
+
   const [loading, setLoading] = useState(true);
 
   const [connectionStatus, setConnectionStatus] =
     useState<ConnectionStatus>("idle");
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [showConnectionMethodModal, setShowConnectionMethodModal] =
+    useState(false);
 
   const connectedDeviceId = useDeviceStore((state) => state.connectedDeviceId);
 
@@ -99,46 +110,58 @@ export default function Connect() {
     getBleManager().stopDeviceScan();
 
     setBleDevices([]);
+
     setConnectionStatus("idle");
+
     setErrorMessage(null);
   }
 
-  async function handleAddDevice() {
+  function handleAddDevice() {
     setErrorMessage(null);
-    setConnectionStatus("checking-health-connect");
+    setShowConnectionMethodModal(true);
+  }
+
+  async function handleSelectConnectionMethod(
+    method: "health-connect" | "ble",
+  ) {
+    setShowConnectionMethodModal(false);
+    setErrorMessage(null);
 
     try {
-      const available = await isHealthConnectAvailable();
+      if (method === "health-connect") {
+        setConnectionStatus("checking-health-connect");
+        const available = await isHealthConnectAvailable();
 
-      if (available) {
-        const connected = await connectHealthConnect();
-
-        if (!connected) {
-          await startBleFallback();
+        if (!available) {
+          setErrorMessage(
+            "Health Connect isn't available on this device. Install or update Health Connect, or choose Bluetooth instead.",
+          );
+          setConnectionStatus("error");
+          return;
         }
+
+        await connectHealthConnect();
       } else {
-        await startBleFallback();
+        await startBleConnection();
       }
     } catch (error) {
-      console.error("Failed to add device:", error);
-
-      setErrorMessage("Couldn't connect the device. Please try again.");
-
+      console.error(`Failed to connect using ${method}:`, error);
+      setErrorMessage("Couldn't connect using that method. Please try again.");
       setConnectionStatus("error");
     }
   }
 
-  async function connectHealthConnect(): Promise<boolean> {
+  async function connectHealthConnect(): Promise<void> {
     setConnectionStatus("requesting-permission");
 
     const granted = await ensureHealthConnectPermissions();
 
     if (!granted) {
-      console.log(
-        "Health Connect permission not granted. Falling back to BLE.",
+      setErrorMessage(
+        "Health Connect permissions were not granted. You can try again or choose Bluetooth instead.",
       );
-
-      return false;
+      setConnectionStatus("error");
+      return;
     }
 
     setConnectionStatus("syncing");
@@ -151,6 +174,7 @@ export default function Connect() {
 
     const device = await registerDevice({
       name: deviceName,
+
       vendor: "health-connect",
     });
 
@@ -165,11 +189,9 @@ export default function Connect() {
     setConnectionStatus("idle");
 
     console.log("Connected through Health Connect:", deviceName);
-
-    return true;
   }
 
-  async function startBleFallback() {
+  async function startBleConnection() {
     setErrorMessage(null);
 
     const granted = await requestBlePermissions();
@@ -205,6 +227,7 @@ export default function Connect() {
     getBleManager().stopDeviceScan();
 
     setConnectionStatus("connecting");
+
     setErrorMessage(null);
 
     try {
@@ -213,6 +236,7 @@ export default function Connect() {
 
       const registeredDevice = await registerDevice({
         name: deviceName,
+
         vendor: "BLE",
       });
 
@@ -245,15 +269,21 @@ export default function Connect() {
   function handleRemoveDevice(device: BackendDevice) {
     Alert.alert(
       "Remove Device",
+
       `Are you sure you want to remove ${device.name}?`,
+
       [
         {
           text: "Cancel",
+
           style: "cancel",
         },
+
         {
           text: "Remove",
+
           style: "destructive",
+
           onPress: () => removeDevice(device),
         },
       ],
@@ -262,6 +292,7 @@ export default function Connect() {
 
   async function removeDevice(device: BackendDevice) {
     setConnectionStatus("removing");
+
     setErrorMessage(null);
 
     try {
@@ -314,6 +345,7 @@ export default function Connect() {
 
             <Pressable
               onPress={cancelBleSearch}
+
               className="rounded-xl bg-black px-4 py-2"
             >
               <Text className="font-[Coiny] text-white">Cancel Search</Text>
@@ -332,8 +364,11 @@ export default function Connect() {
               return (
                 <Pressable
                   key={device.id}
+
                   onPress={() => handleSelectBleDevice(device)}
+
                   disabled={connectionStatus === "connecting"}
+
                   className="rounded-2xl border-4 border-[#a0a0a0] bg-[#e9e9e9] p-5"
                 >
                   <View className="flex-row items-center">
@@ -356,7 +391,9 @@ export default function Connect() {
                     ) : (
                       <MaterialIcons
                         name="chevron-right"
+
                         size={30}
+
                         color="#727272"
                       />
                     )}
@@ -370,7 +407,9 @@ export default function Connect() {
         <View className="flex-1 items-center justify-center">
           <Pressable
             onPress={handleAddDevice}
+
             disabled={isBusy}
+
             className="mb-10 rounded-2xl border-4 border-[#a0a0a0] bg-[#e9e9e9] px-5 py-4"
           >
             {isBusy ? (
@@ -398,6 +437,7 @@ export default function Connect() {
 
               <Pressable
                 onPress={cancelBleSearch}
+
                 className="mt-4 rounded-xl bg-black px-5 py-3"
               >
                 <Text className="font-[Coiny] text-white">Cancel Search</Text>
@@ -450,7 +490,9 @@ export default function Connect() {
 
             <Pressable
               onPress={handleAddDevice}
+
               disabled={isBusy}
+
               className="flex-row items-center rounded-xl bg-black px-4 py-2"
             >
               {isBusy ? (
@@ -475,11 +517,17 @@ export default function Connect() {
             {devices.map((device) => (
               <DeviceCard
                 key={device.id}
+
                 name={device.name}
+
                 battery={device.battery_level}
+
                 selected={connectedDeviceId === device.id}
+
                 removing={isRemoving}
+
                 onSelect={() => handleSelectDevice(device.id)}
+
                 onRemove={() => handleRemoveDevice(device)}
               />
             ))}
@@ -495,6 +543,7 @@ export default function Connect() {
 
               <Pressable
                 onPress={cancelBleSearch}
+
                 className="mt-4 rounded-xl bg-black px-5 py-3"
               >
                 <Text className="font-[Coiny] text-white">Cancel Search</Text>
@@ -559,6 +608,65 @@ export default function Connect() {
           )}
         </View>
       )}
+
+      <Modal
+        visible={showConnectionMethodModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowConnectionMethodModal(false)}
+      >
+        <View className="flex-1 justify-center bg-black/50 px-6">
+          <View className="rounded-2xl bg-white p-6">
+            <Text className="mb-2 text-2xl font-[Coiny] text-black">
+              Add Device
+            </Text>
+            <Text className="mb-6 text-[#727272]">
+              Choose how you want to connect your wearable.
+            </Text>
+
+            <Pressable
+              onPress={() => handleSelectConnectionMethod("health-connect")}
+              disabled={isBusy}
+              className="mb-3 flex-row items-center rounded-xl border border-gray-200 p-4"
+            >
+              <MaterialIcons name="favorite-border" size={28} color="#16a34a" />
+              <View className="ml-4 flex-1">
+                <Text className="font-[Coiny] text-lg text-black">
+                  Health Connect
+                </Text>
+                <Text className="text-sm text-[#727272]">
+                  Sync steps, heart rate and sleep data
+                </Text>
+              </View>
+              <MaterialIcons name="chevron-right" size={24} color="#727272" />
+            </Pressable>
+
+            <Pressable
+              onPress={() => handleSelectConnectionMethod("ble")}
+              disabled={isBusy}
+              className="flex-row items-center rounded-xl border border-gray-200 p-4"
+            >
+              <MaterialIcons name="bluetooth" size={28} color="#2563eb" />
+              <View className="ml-4 flex-1">
+                <Text className="font-[Coiny] text-lg text-black">
+                  Bluetooth (BLE)
+                </Text>
+                <Text className="text-sm text-[#727272]">
+                  Scan for a compatible wearable
+                </Text>
+              </View>
+              <MaterialIcons name="chevron-right" size={24} color="#727272" />
+            </Pressable>
+
+            <Pressable
+              onPress={() => setShowConnectionMethodModal(false)}
+              className="mt-5 items-center py-2"
+            >
+              <Text className="font-[Coiny] text-[#727272]">Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

@@ -80,7 +80,7 @@ export default function Dashboard() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          paddingBottom: 100,
+          paddingBottom: 10,
         }}
       >
         <DashboardHeader displayName={user?.displayName} />

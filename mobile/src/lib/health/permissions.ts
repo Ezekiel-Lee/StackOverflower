@@ -46,6 +46,9 @@ export async function ensureHealthConnectPermissions(): Promise<boolean> {
 
     const granted = await getGrantedPermissions();
 
+    console.log("[Health Connect] currently granted:", granted);
+    console.log("[Health Connect] requested permissions:", PERMISSIONS);
+
     const alreadyGranted = PERMISSIONS.every((permission) =>
       granted.some(
         (item) =>
