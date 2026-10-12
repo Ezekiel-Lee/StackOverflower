@@ -2,6 +2,16 @@ import { auth } from "./firebase/firebase";
 import type { Device } from "@/types/device";
 import type { SensorData } from "@/types/sensor";
 
+export type Notification = {
+  id: string;
+  title: string;
+  message: string;
+  created_at: string;
+  is_read: boolean;
+  severity?: "info" | "warning" | "error" | "success";
+  read_at: string | null;
+};
+
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
 if (!API_URL) {

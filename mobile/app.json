@@ -11,6 +11,8 @@
       "icon": "./assets/expo.icon"
     },
     "android": {
+      "package": "com.boostedanimal.mobile",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -18,7 +20,6 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.boostedanimal.mobile",
       "permissions": [
         "android.permission.BLUETOOTH",
         "android.permission.BLUETOOTH_ADMIN",

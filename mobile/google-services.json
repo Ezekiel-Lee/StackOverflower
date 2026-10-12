@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "631354705493",
+    "project_id": "dss-wearable-dev",
+    "storage_bucket": "dss-wearable-dev.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:631354705493:android:4aa6bdeeff8ff206bc36dc",
+        "android_client_info": {
+          "package_name": "com.boostedanimal.mobile"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "631354705493-6laavdp9r9it2ao7a9qj02ft5j76okah.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA2zhludycr_nteRRPK6ai27cRtr367-0Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "631354705493-6laavdp9r9it2ao7a9qj02ft5j76okah.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

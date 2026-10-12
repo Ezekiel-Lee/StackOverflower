@@ -8,15 +8,17 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from "react-native";
+import { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { SafeAreaView } from "react-native-safe-area-context";
-import GoogleSignInButton from "@/components/buttons/googleSignInButton";
-import AppleSignInButton from "@/components/buttons/appleSignInButton";
 import { Link } from "expo-router";
-import { signUpWithEmail } from "@/lib/firebase/auth";
+
+import GoogleSignInButton from "@/components/buttons/googleSignInButton";
+import { signUpWithEmail, signInWithGoogle } from "@/lib/firebase/auth";
 
 const signUpSchema = z
   .object({
@@ -42,6 +44,8 @@ const signUpSchema = z
 type SignUpForm = z.infer<typeof signUpSchema>;
 
 export default function Signup() {
+  const [googleLoading, setGoogleLoading] = useState(false);
+
   const {
     control,
     handleSubmit,
@@ -59,20 +63,32 @@ export default function Signup() {
   const onSubmit = async (data: SignUpForm) => {
     try {
       await signUpWithEmail(data.email, data.password, data.displayName);
-    } catch (e: unknown) {
+    } catch (error: unknown) {
       const message =
-        e instanceof Error ? e.message : "Failed to create account";
+        error instanceof Error ? error.message : "Failed to create account.";
 
-      Alert.alert("Registration failed", message);
+      Alert.alert("Registration Failed", message);
     }
   };
 
-  const onGoogleSignIn = () => {
-    console.log("Sign in with google");
-  };
+  const onGoogleSignIn = async () => {
+    try {
+      setGoogleLoading(true);
 
-  const onAppleSignIn = () => {
-    console.log("Sign in with apple");
+      await signInWithGoogle();
+
+      // Firebase auth listener handles successful navigation.
+      // Cancelling Google Sign-In is not treated as an error.
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to sign in with Google.";
+
+      Alert.alert("Google Sign-In Failed", message);
+    } finally {
+      setGoogleLoading(false);
+    }
   };
 
   return (
@@ -80,14 +96,18 @@ export default function Signup() {
       <KeyboardAvoidingView
         className="flex-1"
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+        keyboardVerticalOffset={0}
       >
         <ScrollView
           className="flex-1 px-12"
-          contentContainerStyle={{ flexGrow: 1, paddingBottom: 24 }}
+          contentContainerStyle={{
+            flexGrow: 1,
+            paddingBottom: 24,
+          }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {/* Logo */}
           <View className="pt-20">
             <Image
               source={require("@/assets/images/logo.png")}
@@ -217,17 +237,21 @@ export default function Signup() {
           {/* Register */}
           <Pressable
             onPress={handleSubmit(onSubmit)}
-            disabled={isSubmitting}
+            disabled={isSubmitting || googleLoading}
             className={`rounded-full py-4 ${
-              isSubmitting ? "bg-gray-400" : "bg-[#787171]"
+              isSubmitting || googleLoading ? "bg-gray-400" : "bg-[#787171]"
             }`}
           >
-            <Text className="text-center font-semibold text-white">
-              {isSubmitting ? "Registering..." : "Register"}
-            </Text>
+            {isSubmitting ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text className="text-center font-semibold text-white">
+                Register
+              </Text>
+            )}
           </Pressable>
 
-          {/* Sign In */}
+          {/* Login Link */}
           <Text className="pt-4 text-center font-bold">
             Already have an account?
             <Link href="/(auth)/login">
@@ -235,10 +259,18 @@ export default function Signup() {
             </Link>
           </Text>
 
-          {/* Social Sign In */}
-          <View className="mb-8 justify-center gap-5 pt-12">
-            <GoogleSignInButton onPress={onGoogleSignIn} />
-            <AppleSignInButton onPress={onAppleSignIn} />
+          {/* Google Sign In */}
+          <View className="mb-8 justify-center pt-12">
+            {googleLoading ? (
+              <View className="flex-row items-center justify-center py-3">
+                <ActivityIndicator color="#4285F4" />
+                <Text className="ml-2 text-gray-700">
+                  Signing in with Google...
+                </Text>
+              </View>
+            ) : (
+              <GoogleSignInButton onPress={onGoogleSignIn} />
+            )}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
