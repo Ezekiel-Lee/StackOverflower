@@ -21,8 +21,11 @@ import { useSelectedDevice } from "@/hooks/useSelectedDevice";
 import type { SensorData } from "@/types/sensor";
 
 export default function Summary() {
-  const { selectedDevice, connectedDeviceId, loading: deviceLoading } =
-    useSelectedDevice();
+  const {
+    selectedDevice,
+    connectedDeviceId,
+    loading: deviceLoading,
+  } = useSelectedDevice();
 
   const [sensorData, setSensorData] = useState<SensorData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -109,7 +112,11 @@ export default function Summary() {
             paddingHorizontal: 32,
           }}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+            <RefreshControl
+              testID="summary-refresh-control"
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+            />
           }
         >
           <View className="items-center">
@@ -135,7 +142,11 @@ export default function Summary() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+          <RefreshControl
+            testID="summary-refresh-control"
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+          />
         }
         contentContainerStyle={{
           paddingHorizontal: 16,

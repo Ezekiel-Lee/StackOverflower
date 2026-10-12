@@ -119,13 +119,12 @@ jest.mock("@/lib/health/permissions", () => ({
 }));
 
 jest.mock("@/lib/health/deviceSource", () => ({
-  getHealthConnectSource: (...args: unknown[]) =>
-    mockGetHealthConnectSource(...args),
+  getHealthConnectSource: () => mockGetHealthConnectSource(),
 }));
 
 jest.mock("@/lib/health/syncHealthData", () => ({
-  syncHealthDataToBackend: (...args: unknown[]) =>
-    mockSyncHealthDataToBackend(...args),
+  syncHealthDataToBackend: (deviceId: string, since: Date) =>
+    mockSyncHealthDataToBackend(deviceId, since),
 }));
 
 // ==================================================
