@@ -64,19 +64,28 @@ Install dependencies:
 ```bash
 npm install
 ```
+Install expo-dev-client:
 
-Start the Expo development server:
+```bash
+npx expo install expo-dev-client
+```
 
+Build and run the app
+```bash
+npx expo run:android
+```
+
+Rebuild when native code changes,
+In this case regenerate the native directories before rebuilding.
+```bash
+npx expo prebuild --clean
+npx expo run:android
+```
+
+After building once, You can run the development build with
 ```bash
 npx expo start
 ```
-
-The terminal output provides options to open the application in:
-
-* Development build
-* Android emulator
-* iOS simulator
-* Expo Go
 
 You can start developing by editing files inside:
 
